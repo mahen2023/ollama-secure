@@ -14,7 +14,7 @@ export default function AppLogo({ className = '', alt = 'Ollama Chat' }) {
         </linearGradient>
       </defs>
       <circle cx="32" cy="32" r="32" fill="url(#ollama-logo-bg)" />
-      <polygon points="40,6 22,34 32,34 18,58 46,28 36,28" fill="white" />
+      <polygon points="40,6 14,34 32,34 12,56 52,28 36,28" fill="white" />
     </svg>
   );
 }
