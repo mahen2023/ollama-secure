@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { X, MessageSquare, Sliders, Layers, Zap, Trash2, AlertTriangle, Info, UserCircle } from 'lucide-react';
+import { X, MessageSquare, Sliders, Layers, Zap, Trash2, AlertTriangle, Info, UserCircle, KeyRound } from 'lucide-react';
 import { useStore } from '../../store';
 import { clearMessages } from '../../api/chats';
+import ApiKeysManager from './ApiKeysManager';
 
 function Toggle({ value, onChange }) {
   return (
@@ -28,14 +29,15 @@ function Section({ icon: Icon, title, children }) {
   );
 }
 
-const TABS = ['General', 'Advanced', 'Account', 'Danger'];
-
 export default function SettingsModal() {
   const {
     token, user, settings, updateSettings,
     setSettingsOpen, currentChatId, chats,
     setCurrentChat,
   } = useStore();
+
+  // API Keys tab is admin-only
+  const TABS = ['General', 'Advanced', ...(user?.role === 'admin' ? ['API Keys'] : []), 'Account', 'Danger'];
 
   const [local,        setLocal]        = useState({ ...settings });
   const [tab,          setTab]          = useState('General');
@@ -155,6 +157,16 @@ export default function SettingsModal() {
                 <p className="text-xs text-[#555]">Context length is clamped by the model's native limit in Ollama.</p>
               </div>
             </>
+          )}
+
+          {tab === 'API Keys' && (
+            <Section icon={KeyRound} title="API Keys">
+              <p className="text-xs text-[#555] -mt-1 mb-1">
+                Keys grant access to <code className="font-mono text-[#8e8ea0]">/v1/*</code> — Ollama API without a user login.
+                Use them to integrate with other applications or scripts.
+              </p>
+              <ApiKeysManager />
+            </Section>
           )}
 
           {tab === 'Account' && (

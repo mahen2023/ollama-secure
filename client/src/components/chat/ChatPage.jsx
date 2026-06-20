@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Bot, Code2, Globe, Zap, Lightbulb } from 'lucide-react';
+import { Code2, Globe, Zap, Lightbulb } from 'lucide-react';
+import AppLogo from '../AppLogo';
 import { useStore } from '../../store';
 import { fetchModels, streamChat, generateTitle } from '../../api/ollama';
 import { createChat, getChat, patchChat, appendMessages } from '../../api/chats';
@@ -25,9 +26,12 @@ export default function ChatPage() {
   const abortRef  = useRef(null);
   const accumRef  = useRef('');
 
-  // Load full chat (with messages) when currentChatId changes
+  // Load full chat (with messages) when currentChatId changes.
+  // Skip the fetch if this chat is already loaded locally (e.g. just created in handleSend)
+  // to prevent the server response from overwriting optimistic messages mid-stream.
   useEffect(() => {
     if (!currentChatId || !token) return;
+    if (useStore.getState().currentChat?._id === currentChatId) return;
     let cancelled = false;
     getChat(token, currentChatId)
       .then((chat) => { if (!cancelled) setCurrentChat(chat); })
@@ -123,6 +127,10 @@ export default function ChatPage() {
           body: JSON.stringify({ model: selectedModel, messages: payload, stream: false, options: { temperature: settings.temperature } }),
           signal: abortRef.current.signal,
         });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.error ?? `Request failed (${res.status})`);
+        }
         const data = await res.json();
         const response = data.message?.content ?? '';
         updateLastMessage(response);
@@ -152,10 +160,7 @@ export default function ChatPage() {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 flex flex-col items-center justify-center p-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#10a37f] to-[#1a7f64] rounded-2xl
-                          flex items-center justify-center mb-5 shadow-lg">
-            <Bot className="w-8 h-8 text-white" />
-          </div>
+          <AppLogo className="w-16 h-16 rounded-2xl mb-5 shadow-lg" />
           <h1 className="text-2xl font-semibold text-white mb-1">How can I help you?</h1>
           <p className="text-[#8e8ea0] text-sm mb-8">
             {selectedModel ? `Model: ${selectedModel}` : 'Select a model to start'}

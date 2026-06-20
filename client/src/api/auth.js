@@ -1,11 +1,15 @@
 async function request(path, body) {
-  const res = await fetch(path, {
-    method: 'POST',
+  const res  = await fetch(path, {
+    method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body:    JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const err  = new Error(data.error || 'Request failed');
+    err.code   = data.code ?? null;
+    throw err;
+  }
   return data;
 }
 

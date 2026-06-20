@@ -3,7 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, User, Bot, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Copy, Check, User, ThumbsUp, ThumbsDown } from 'lucide-react';
+import AppLogo from '../AppLogo';
 
 function CopyBtn({ text, className = '' }) {
   const [copied, setCopied] = useState(false);
@@ -115,12 +116,13 @@ export default function MessageItem({ message }) {
   return (
     <div className={`group flex gap-4 py-5 px-4 md:px-6 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5
-        ${isUser ? 'bg-[#5436da]' : 'bg-[#10a37f]'}`}>
-        {isUser
-          ? <User className="w-4 h-4 text-white" />
-          : <Bot className="w-4 h-4 text-white" />}
-      </div>
+      {isUser ? (
+        <div className="w-8 h-8 rounded-full bg-[#5436da] flex items-center justify-center shrink-0 mt-0.5">
+          <User className="w-4 h-4 text-white" />
+        </div>
+      ) : (
+        <AppLogo className="w-8 h-8 rounded-xl shrink-0 mt-0.5" alt="" />
+      )}
 
       {/* Content */}
       <div className={`flex-1 min-w-0 ${isUser ? 'flex justify-end' : ''}`}>

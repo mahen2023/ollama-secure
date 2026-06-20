@@ -1,36 +1,12 @@
 services:
-  mongo:
-    image: mongo:7
-    container_name: ollama-mongo
-    volumes:
-      - mongo_data:/data/db
-    ports:
-      - "27017:27017"
-    restart: unless-stopped
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-    restart: unless-stopped
-
-  app:
+   app:
     build: .
     container_name: ollama-app
     ports:
       - "3001:3001"
     environment:
-      - MONGODB_URI=mongodb://mongo:27017/ollama-chat
+      - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
-      - OLLAMA_URL=http://ollama:11434
-    depends_on:
-      - mongo
-      - ollama
+      - OLLAMA_URL=${OLLAMA_URL}
+   
     restart: unless-stopped
-
-volumes:
-  mongo_data:
-  ollama_data:

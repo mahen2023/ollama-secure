@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Plus, MessageSquare, Trash2, Settings, LogOut,
-  PanelLeftClose, PanelLeft, Pencil, Check, X, Bot, UserCircle,
+  Plus, MessageSquare, Trash2, Settings, LogOut, ShieldCheck,
+  PanelLeftClose, PanelLeft, Pencil, Check, X, UserCircle,
 } from 'lucide-react';
+import AppLogo from '../AppLogo';
 import { useStore } from '../../store';
 import { deleteChat, patchChat } from '../../api/chats';
 
@@ -17,10 +19,10 @@ function groupByDate(chats) {
   ];
   chats.forEach((c) => {
     const age = now - new Date(c.createdAt).getTime();
-    if      (age < DAY)           groups[0].items.push(c);
-    else if (age < 2 * DAY)       groups[1].items.push(c);
-    else if (age < 7 * DAY)       groups[2].items.push(c);
-    else                          groups[3].items.push(c);
+    if      (age < DAY)       groups[0].items.push(c);
+    else if (age < 2 * DAY)   groups[1].items.push(c);
+    else if (age < 7 * DAY)   groups[2].items.push(c);
+    else                      groups[3].items.push(c);
   });
   return groups;
 }
@@ -101,29 +103,35 @@ export default function Sidebar() {
   const {
     token, user,
     chats, currentChatId,
-    setCurrentChatId, prependChat, updateChatMeta, removeChatFromList,
+    models,
+    setCurrentChatId, updateChatMeta, removeChatFromList,
     sidebarOpen, toggleSidebar,
     setSettingsOpen, logout,
   } = useStore();
 
+  const navigate = useNavigate();
+
   const handleNewChat = () => {
-    setCurrentChatId(null);
-    useStore.getState().setCurrentChat && useStore.setState({ currentChat: null, currentChatId: null });
+    useStore.setState({ currentChat: null, currentChatId: null });
   };
 
-  const handleSelect = (id) => setCurrentChatId(id);
+  const handleSelect  = (id) => setCurrentChatId(id);
 
-  const handleDelete = async (id) => {
+  const handleDelete  = async (id) => {
     removeChatFromList(id);
-    deleteChat(token, id).catch(() => {}); // optimistic
+    deleteChat(token, id).catch(() => {});
   };
 
-  const handleRename = async (id, title) => {
+  const handleRename  = async (id, title) => {
     updateChatMeta(id, { title });
-    patchChat(token, id, { title }).catch(() => {}); // optimistic
+    patchChat(token, id, { title }).catch(() => {});
   };
 
-  const groups = groupByDate(chats);
+  const availableModels = new Set(models.map((m) => m.name));
+  const visibleChats = models.length > 0
+    ? chats.filter((c) => !c.model || availableModels.has(c.model))
+    : chats;
+  const groups = groupByDate(visibleChats);
 
   if (!sidebarOpen) {
     return (
@@ -161,7 +169,7 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-3">
         {groups.every((g) => g.items.length === 0) && (
           <div className="text-center mt-10">
-            <Bot className="w-8 h-8 text-[#333] mx-auto mb-2" />
+            <AppLogo className="w-8 h-8 rounded-xl mx-auto mb-2 opacity-25" alt="" />
             <p className="text-[#555] text-xs">No chats yet</p>
           </div>
         )}
@@ -191,8 +199,23 @@ export default function Sidebar() {
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#10a37f] to-[#1a7f64] flex items-center justify-center shrink-0">
             <UserCircle className="w-4 h-4 text-white" />
           </div>
-          <span className="text-sm text-[#adadad] truncate font-medium">{user?.username}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-[#adadad] truncate font-medium">{user?.username}</p>
+            {user?.role === 'admin' && (
+              <p className="text-[10px] text-purple-400">Admin</p>
+            )}
+          </div>
         </div>
+
+        {user?.role === 'admin' && (
+          <button
+            onClick={() => navigate('/admin')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-[#8e8ea0] hover:text-purple-400
+                       hover:bg-[#2a2a2a] rounded-lg transition-colors text-sm"
+          >
+            <ShieldCheck className="w-4 h-4" /> Admin Panel
+          </button>
+        )}
 
         <button
           onClick={() => setSettingsOpen(true)}
