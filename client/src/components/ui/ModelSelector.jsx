@@ -33,7 +33,7 @@ export default function ModelSelector() {
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 px-3 py-1.5 bg-[#212121] hover:bg-[#1a1a1a] border border-[#3a3a3a]
-                   text-sm text-white rounded-lg transition-colors max-w-[220px]"
+                   text-sm text-white rounded-lg transition-colors w-full max-w-[220px] min-w-0 overflow-hidden"
       >
         <Cpu className="w-3.5 h-3.5 text-[#10a37f] shrink-0" />
         <span className="truncate flex-1 text-left">{selectedModel || 'Select model'}</span>
@@ -41,7 +41,7 @@ export default function ModelSelector() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-0 w-72 bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl shadow-2xl z-50">
+        <div className="absolute bottom-full mb-2 left-0 sm:left-auto sm:right-0 w-72 max-w-[calc(100vw-2rem)] bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl shadow-2xl z-50">
           <div className="flex items-center justify-between px-3 pt-3 pb-2">
             <span className="text-xs font-semibold text-[#8e8ea0] uppercase tracking-wide">Available Models</span>
             <button onClick={refresh} className="text-[#8e8ea0] hover:text-white transition-colors">

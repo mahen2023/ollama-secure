@@ -15,12 +15,11 @@ function TypingIndicator() {
   );
 }
 
-export default function MessageList({ messages, isGenerating }) {
+export default function MessageList({ messages, isGenerating, stoppedIndex, onEdit, onRegenerate, onContinue }) {
   const bottomRef = useRef(null);
   const containerRef = useRef(null);
 
   useEffect(() => {
-    // Auto-scroll to bottom smoothly while generating, instantly on load
     bottomRef.current?.scrollIntoView({ behavior: isGenerating ? 'smooth' : 'instant' });
   }, [messages, isGenerating]);
 
@@ -31,10 +30,19 @@ export default function MessageList({ messages, isGenerating }) {
     <div ref={containerRef} className="flex-1 overflow-y-auto">
       <div className="max-w-3xl mx-auto">
         {messages.map((msg, i) => {
-          // While generating, skip the empty assistant placeholder —
-          // TypingIndicator owns that slot until the first chunk arrives.
           if (isGenerating && msg.role === 'assistant' && !msg.content) return null;
-          return <MessageItem key={msg._id ?? msg.id ?? i} message={msg} />;
+          return (
+            <MessageItem
+              key={msg._id ?? msg.id ?? i}
+              message={msg}
+              index={i}
+              isGenerating={isGenerating}
+              isStopped={i === stoppedIndex}
+              onEdit={onEdit}
+              onRegenerate={onRegenerate}
+              onContinue={onContinue}
+            />
+          );
         })}
         {showTyping && <TypingIndicator />}
         <div ref={bottomRef} className="h-4" />

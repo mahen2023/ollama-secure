@@ -8,7 +8,14 @@ export async function fetchModels(token) {
   return data.models ?? [];
 }
 
-export async function streamChat({ token, model, messages, systemPrompt, temperature, onChunk, onDone, signal }) {
+function buildOptions(temperature, contextLength) {
+  const opts = {};
+  if (Number.isFinite(temperature))                              opts.temperature = temperature;
+  if (Number.isFinite(contextLength) && contextLength > 0)      opts.num_ctx     = contextLength;
+  return opts;
+}
+
+export async function streamChat({ token, model, messages, systemPrompt, temperature, contextLength, onChunk, onDone, signal }) {
   const payload = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
@@ -16,7 +23,7 @@ export async function streamChat({ token, model, messages, systemPrompt, tempera
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: h(token),
-    body: JSON.stringify({ model, messages: payload, stream: true, options: { temperature } }),
+    body: JSON.stringify({ model, messages: payload, stream: true, options: buildOptions(temperature, contextLength) }),
     signal,
   });
 
@@ -42,14 +49,14 @@ export async function streamChat({ token, model, messages, systemPrompt, tempera
         try {
           const data = JSON.parse(line);
           if (data.message?.content) onChunk(data.message.content);
-          if (data.done) { onDone?.(); return; }
+          if (data.done) { await onDone?.(); return; }
         } catch { /* skip malformed line */ }
       }
     }
   } finally {
     reader.releaseLock();
   }
-  onDone?.();
+  await onDone?.();
 }
 
 export async function generateTitle(token, model, userMessage) {

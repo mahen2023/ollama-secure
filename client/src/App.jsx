@@ -22,6 +22,54 @@ function RequireAdmin({ children }) {
 
 function AppLayout() {
   const { settingsOpen } = useStore();
+
+  // Close sidebar by default on mobile; re-close if window shrinks past breakpoint
+  useEffect(() => {
+    const MOBILE = 768;
+    if (window.innerWidth < MOBILE) useStore.getState().setSidebarOpen(false);
+    const onResize = () => {
+      if (window.innerWidth < MOBILE) useStore.getState().setSidebarOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+
+      const inField =
+        ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) ||
+        document.activeElement?.contentEditable === 'true';
+
+      // Ctrl+K — new chat (fire even inside text fields, matches ChatGPT / Claude convention)
+      if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        useStore.setState({ currentChat: null, currentChatId: null });
+        return;
+      }
+
+      if (inField) return; // remaining shortcuts don't apply while typing
+
+      // Ctrl+/ — toggle sidebar
+      if (e.key === '/') {
+        e.preventDefault();
+        useStore.getState().toggleSidebar();
+        return;
+      }
+
+      // Ctrl+, — open settings
+      if (e.key === ',') {
+        e.preventDefault();
+        useStore.getState().setSettingsOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   return (
     <div className="flex h-screen bg-[#212121] overflow-hidden">
       <Sidebar />

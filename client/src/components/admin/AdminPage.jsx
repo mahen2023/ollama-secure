@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Users, Key, BarChart2, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Users, Key, BarChart2, ArrowLeft, Cpu, ClipboardList } from 'lucide-react';
 import UsersTab      from './UsersTab';
 import ApiKeysTab    from './ApiKeysTab';
 import AnalyticsTab  from './AnalyticsTab';
+import ModelsTab     from './ModelsTab';
+import AuditLogTab   from './AuditLogTab';
 
 const TABS = [
-  { id: 'users',     label: 'Users',     icon: Users     },
-  { id: 'apikeys',   label: 'API Keys',  icon: Key       },
-  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+  { id: 'users',     label: 'Users',     icon: Users         },
+  { id: 'apikeys',   label: 'API Keys',  icon: Key           },
+  { id: 'analytics', label: 'Analytics', icon: BarChart2     },
+  { id: 'models',    label: 'Models',    icon: Cpu           },
+  { id: 'auditlog',  label: 'Audit Log', icon: ClipboardList },
 ];
 
 export default function AdminPage() {
@@ -59,6 +63,8 @@ export default function AdminPage() {
           {tab === 'users'     && <UsersTab />}
           {tab === 'apikeys'   && <ApiKeysTab />}
           {tab === 'analytics' && <AnalyticsTab />}
+          {tab === 'models'    && <ModelsTab />}
+          {tab === 'auditlog'  && <AuditLogTab />}
         </div>
       </div>
     </div>

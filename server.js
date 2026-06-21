@@ -30,7 +30,7 @@ app.use('/chat', (_req, res) => res.sendFile(path.join(CLIENT_DIST, 'index.html'
 app.get('/', (_req, res) => res.redirect('/chat'));
 
 // ── Body parser ───────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '4mb' }));
+app.use(express.json({ limit: '25mb' }));
 
 // ── Public auth routes ────────────────────────────────────────────────────────
 app.use('/auth', require('./routes/auth'));
@@ -56,10 +56,21 @@ app.use('/admin', requireAuth, requireAdmin, require('./routes/admin'));
 //
 async function proxyOllama(req, res, { targetUrl, userId, apiKeyId = null, source = 'web' }) {
   try {
+    // Sanitise the forwarded body: strip undefined/NaN from options so they
+    // don't reach Ollama as JSON null (which Ollama silently ignores).
+    let forwardBody = req.body;
+    if (forwardBody?.options && typeof forwardBody.options === 'object') {
+      const clean = {};
+      for (const [k, v] of Object.entries(forwardBody.options)) {
+        if (v !== null && v !== undefined && Number.isFinite(v)) clean[k] = v;
+      }
+      forwardBody = { ...forwardBody, options: clean };
+    }
+
     const response = await axios({
       method: req.method,
       url:    targetUrl,
-      data:   req.body,
+      data:   forwardBody,
       responseType: 'stream',
       headers: { 'Content-Type': 'application/json' },
       validateStatus: () => true,
@@ -84,35 +95,51 @@ async function proxyOllama(req, res, { targetUrl, userId, apiKeyId = null, sourc
     let buf = '';
     let promptTokens = 0;
     let completionTokens = 0;
+    let seenDone = false;
 
-    response.data.on('data', (chunk) => {
-      res.write(chunk);
-      buf += chunk.toString();
-      // Parse complete newline-delimited JSON lines
-      const nl = buf.lastIndexOf('\n');
-      if (nl === -1) return;
-      const lines = buf.slice(0, nl + 1).split('\n');
-      buf = buf.slice(nl + 1);
-      for (const line of lines) {
+    function parseLines(text) {
+      const nl = text.lastIndexOf('\n');
+      if (nl === -1) return text;
+      for (const line of text.slice(0, nl + 1).split('\n')) {
         if (!line.trim()) continue;
         try {
           const obj = JSON.parse(line);
           if (obj.done === true) {
             promptTokens     = obj.prompt_eval_count ?? 0;
             completionTokens = obj.eval_count ?? 0;
+            seenDone = true;
           }
         } catch { /* non-JSON line — skip */ }
       }
+      return text.slice(nl + 1);
+    }
+
+    response.data.on('data', (chunk) => {
+      res.write(chunk);
+      buf += chunk.toString();
+      buf = parseLines(buf);
     });
 
     response.data.on('end', () => {
+      // Flush any remainder that arrived without a trailing newline
+      if (buf.trim()) {
+        try {
+          const obj = JSON.parse(buf.trim());
+          if (obj.done === true) {
+            promptTokens     = obj.prompt_eval_count ?? 0;
+            completionTokens = obj.eval_count ?? 0;
+            seenDone = true;
+          }
+        } catch { /* not valid JSON */ }
+      }
       res.end();
-      const totalTokens = promptTokens + completionTokens;
-      if (totalTokens > 0) {
+      // Log every completed inference — even when Ollama omits token counts (prompt cache hits)
+      if (seenDone) {
         UsageLog.create({
           userId, apiKeyId, source,
           model: req.body.model,
-          promptTokens, completionTokens, totalTokens,
+          promptTokens, completionTokens,
+          totalTokens: promptTokens + completionTokens,
         }).catch(() => {});
       }
     });

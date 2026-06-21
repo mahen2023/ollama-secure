@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Trash2, ShieldCheck, ShieldOff, UserCheck, RefreshCw } from 'lucide-react';
+import { Check, X, Trash2, ShieldCheck, ShieldOff, UserCheck, RefreshCw, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '../../store';
-import { getAdminUsers, updateAdminUser, deleteAdminUser } from '../../api/admin';
+import { getAdminUsers, updateAdminUser, deleteAdminUser, createAdminUser } from '../../api/admin';
 
 const STATUS_COLORS = {
   active:    'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
@@ -65,11 +65,110 @@ function LimitsCell({ user, onSave }) {
   );
 }
 
+function CreateUserForm({ onCreated, onCancel }) {
+  const { token } = useStore();
+  const [username,  setUsername]  = useState('');
+  const [password,  setPassword]  = useState('');
+  const [role,      setRole]      = useState('user');
+  const [showPw,    setShowPw]    = useState(false);
+  const [busy,      setBusy]      = useState(false);
+  const [err,       setErr]       = useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!username.trim() || !password) return;
+    setBusy(true);
+    setErr('');
+    try {
+      const user = await createAdminUser(token, { username: username.trim(), password, role });
+      onCreated(user);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 space-y-3 mb-4"
+    >
+      <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+        <UserPlus className="w-4 h-4 text-[#10a37f]" /> Create user
+      </h3>
+
+      <div className="flex flex-wrap gap-3">
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Username"
+          autoFocus
+          className="bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-lg
+                     px-3 py-2 text-sm focus:outline-none focus:border-[#10a37f]
+                     placeholder-[#555] w-44 transition-colors"
+        />
+
+        <div className="relative">
+          <input
+            type={showPw ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password (min 6 chars)"
+            className="bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-lg
+                       px-3 py-2 pr-8 text-sm focus:outline-none focus:border-[#10a37f]
+                       placeholder-[#555] w-52 transition-colors"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#8e8ea0]"
+          >
+            {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-lg
+                     px-3 py-2 text-sm focus:outline-none focus:border-[#10a37f] transition-colors"
+        >
+          <option value="user">user</option>
+          <option value="admin">admin</option>
+        </select>
+
+        <div className="flex gap-2 items-center">
+          <button
+            type="submit"
+            disabled={busy || !username.trim() || !password}
+            className="px-3 py-2 bg-[#10a37f] hover:bg-[#0d9270] disabled:opacity-50
+                       text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1"
+          >
+            {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Create
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-2 bg-[#2a2a2a] hover:bg-[#333] text-[#8e8ea0] text-sm rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      {err && <p className="text-red-400 text-xs">{err}</p>}
+    </form>
+  );
+}
+
 export default function UsersTab() {
   const { token, user: me } = useStore();
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
+  const [users,       setUsers]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
+  const [showCreate,  setShowCreate]  = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -112,6 +211,25 @@ export default function UsersTab() {
         <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
           {error}
         </p>
+      )}
+
+      {/* Create user */}
+      {showCreate ? (
+        <CreateUserForm
+          onCreated={(user) => { setUsers((prev) => [{ ...user, usage: { totalTokens: 0, totalRequests: 0 } }, ...prev]); setShowCreate(false); }}
+          onCancel={() => setShowCreate(false)}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-[#1e1e1e] border border-[#2a2a2a]
+                       hover:border-[#10a37f] text-[#8e8ea0] hover:text-white text-sm rounded-xl
+                       transition-colors"
+          >
+            <UserPlus className="w-4 h-4" /> Create user
+          </button>
+        </div>
       )}
 
       <div className="overflow-x-auto">

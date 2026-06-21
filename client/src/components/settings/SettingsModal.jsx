@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { X, MessageSquare, Sliders, Layers, Zap, Trash2, AlertTriangle, Info, UserCircle, KeyRound } from 'lucide-react';
+import { X, MessageSquare, Sliders, Layers, Zap, Trash2, AlertTriangle, Info, UserCircle, KeyRound, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store';
 import { clearMessages } from '../../api/chats';
+import { changePassword, deleteAccount } from '../../api/auth';
 import ApiKeysManager from './ApiKeysManager';
 
 function Toggle({ value, onChange }) {
@@ -39,16 +40,77 @@ export default function SettingsModal() {
   // API Keys tab is admin-only
   const TABS = ['General', 'Advanced', ...(user?.role === 'admin' ? ['API Keys'] : []), 'Account', 'Danger'];
 
-  const [local,        setLocal]        = useState({ ...settings });
+  const [local, setLocal] = useState(() => ({
+    ...settings,
+    // Guard: if a pre-existing user doc lacks these fields, fall back to safe defaults
+    contextLength: Number.isFinite(settings.contextLength) && settings.contextLength > 0
+      ? settings.contextLength : 4096,
+    temperature: Number.isFinite(settings.temperature) ? settings.temperature : 0.7,
+  }));
   const [tab,          setTab]          = useState('General');
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing,     setClearing]     = useState(false);
+
+  // Delete account form
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deletePw,      setDeletePw]      = useState('');
+  const [showDeletePw,  setShowDeletePw]  = useState(false);
+  const [deleteBusy,    setDeleteBusy]    = useState(false);
+  const [deleteError,   setDeleteError]   = useState('');
+
+  // Password change form
+  const [pwForm,    setPwForm]    = useState({ current: '', next: '', confirm: '' });
+  const [pwShow,    setPwShow]    = useState({ current: false, next: false, confirm: false });
+  const [pwBusy,    setPwBusy]    = useState(false);
+  const [pwError,   setPwError]   = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
+
+  const patchPw = (key, val) => { setPwForm((p) => ({ ...p, [key]: val })); setPwError(''); setPwSuccess(false); };
+  const togglePwShow = (key) => setPwShow((p) => ({ ...p, [key]: !p[key] }));
+
+  const submitPasswordChange = async () => {
+    if (!pwForm.current)  return setPwError('Enter your current password');
+    if (!pwForm.next)     return setPwError('Enter a new password');
+    if (pwForm.next.length < 6) return setPwError('New password must be at least 6 characters');
+    if (pwForm.next !== pwForm.confirm) return setPwError('New passwords do not match');
+    setPwBusy(true);
+    setPwError('');
+    try {
+      const data = await changePassword(token, { current: pwForm.current, newPassword: pwForm.next });
+      // Swap to the fresh token returned by the server — the old one is now invalidated
+      if (data?.token) useStore.getState().refreshToken(data.token);
+      setPwSuccess(true);
+      setPwForm({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      setPwError(err.message);
+    } finally {
+      setPwBusy(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePw) return setDeleteError('Password is required');
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      await deleteAccount(token, deletePw);
+      useStore.getState().logout();
+    } catch (err) {
+      setDeleteError(err.message);
+      setDeleteBusy(false);
+    }
+  };
 
   const currentChat = chats.find((c) => c._id === currentChatId);
   const patch = (key, value) => setLocal((p) => ({ ...p, [key]: value }));
 
   const save = () => {
-    updateSettings(local);
+    updateSettings({
+      ...local,
+      // Normalise numerics before persisting so we never write null/NaN to the DB
+      contextLength: Math.max(512, Math.round(local.contextLength || 4096)),
+      temperature:   Math.round(Math.max(0, Math.min(2, local.temperature ?? 0.7)) * 10) / 10,
+    });
     setSettingsOpen(false);
   };
 
@@ -139,22 +201,41 @@ export default function SettingsModal() {
               </Section>
 
               <Section icon={Layers} title="Context Length">
-                <div className="flex justify-between mb-1">
-                  <p className="text-sm text-[#ececec]">Max tokens</p>
-                  <span className="text-sm text-[#10a37f] font-mono font-semibold">{local.contextLength.toLocaleString()}</span>
+                <div className="flex items-center justify-between mb-1 gap-3">
+                  <p className="text-sm text-[#ececec]">Max context tokens (num_ctx)</p>
+                  <input
+                    type="number"
+                    value={local.contextLength}
+                    min="512"
+                    max="131072"
+                    step="512"
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (Number.isFinite(v) && v >= 512) patch('contextLength', v);
+                    }}
+                    className="w-24 bg-[#2a2a2a] border border-[#3a3a3a] text-[#10a37f] font-mono
+                               font-semibold text-sm text-right rounded-lg px-2 py-1
+                               focus:outline-none focus:border-[#10a37f]
+                               [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
+                               [&::-webkit-outer-spin-button]:appearance-none"
+                  />
                 </div>
                 <input type="range" min="512" max="32768" step="512"
-                  value={local.contextLength}
-                  onChange={(e) => patch('contextLength', parseInt(e.target.value))}
+                  value={Math.min(local.contextLength, 32768)}
+                  onChange={(e) => patch('contextLength', parseInt(e.target.value, 10))}
                   className="w-full accent-[#10a37f] cursor-pointer" />
                 <div className="flex justify-between text-xs text-[#555] mt-1">
-                  <span>512</span><span>32 768</span>
+                  <span>512</span>
+                  <span>32 768</span>
                 </div>
               </Section>
 
               <div className="flex items-start gap-2 bg-[#1a1a1a] border border-[#3a3a3a] rounded-xl px-3 py-2.5">
                 <Info className="w-4 h-4 text-[#555] mt-0.5 shrink-0" />
-                <p className="text-xs text-[#555]">Context length is clamped by the model's native limit in Ollama.</p>
+                <p className="text-xs text-[#555]">
+                  Sets Ollama's context window size. Capped by the model's native limit.
+                  Type a value above 32 768 directly — the slider covers the common range.
+                </p>
               </div>
             </>
           )}
@@ -170,31 +251,80 @@ export default function SettingsModal() {
           )}
 
           {tab === 'Account' && (
-            <Section icon={UserCircle} title="Account">
-              <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-4 space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#10a37f] to-[#1a7f64] flex items-center justify-center">
-                    <UserCircle className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">{user?.username}</p>
-                    <p className="text-[#555] text-xs">Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}</p>
+            <>
+              <Section icon={UserCircle} title="Profile">
+                <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#10a37f] to-[#1a7f64] flex items-center justify-center shrink-0">
+                      <UserCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{user?.username}</p>
+                      <p className="text-[#555] text-xs">Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <p className="text-xs text-[#555]">
-                All chat history and settings are saved to MongoDB under your account.
-              </p>
-            </Section>
+              </Section>
+
+              <Section icon={Lock} title="Change Password">
+                <div className="space-y-2.5">
+                  {(['current', 'next', 'confirm']).map((key) => {
+                    const labels = { current: 'Current password', next: 'New password', confirm: 'Confirm new password' };
+                    return (
+                      <div key={key} className="relative">
+                        <input
+                          type={pwShow[key] ? 'text' : 'password'}
+                          value={pwForm[key]}
+                          onChange={(e) => patchPw(key, e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && submitPasswordChange()}
+                          placeholder={labels[key]}
+                          className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-xl
+                                     px-3 py-2.5 pr-10 text-sm focus:outline-none focus:border-[#10a37f]
+                                     placeholder-[#555] transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => togglePwShow(key)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#8e8ea0] transition-colors"
+                        >
+                          {pwShow[key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {pwError && (
+                    <p className="flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {pwError}
+                    </p>
+                  )}
+                  {pwSuccess && (
+                    <p className="flex items-center gap-1.5 text-xs text-[#10a37f]">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Password changed successfully
+                    </p>
+                  )}
+
+                  <button
+                    onClick={submitPasswordChange}
+                    disabled={pwBusy}
+                    className="w-full py-2.5 bg-[#10a37f] hover:bg-[#0d9270] disabled:opacity-50
+                               text-white text-sm font-medium rounded-xl transition-colors"
+                  >
+                    {pwBusy ? 'Updating…' : 'Update password'}
+                  </button>
+                </div>
+              </Section>
+            </>
           )}
 
           {tab === 'Danger' && (
-            <Section icon={Trash2} title="Data">
+            <Section icon={Trash2} title="Danger zone">
+              {/* Clear current chat */}
               {currentChat ? (
                 <div className="border border-red-500/20 bg-red-500/5 rounded-xl p-4">
                   <p className="text-sm text-white font-medium mb-1">Clear current chat</p>
                   <p className="text-xs text-[#8e8ea0] mb-3">
-                    Permanently removes all messages from <span className="text-white">"{currentChat.title}"</span> in MongoDB.
+                    Permanently removes all messages from <span className="text-white">"{currentChat.title}"</span>.
                   </p>
                   {confirmClear ? (
                     <div className="flex items-center gap-2">
@@ -221,8 +351,77 @@ export default function SettingsModal() {
                   )}
                 </div>
               ) : (
-                <p className="text-[#555] text-sm">Open a chat to manage its messages.</p>
+                <p className="text-[#555] text-xs">Open a chat to clear its messages.</p>
               )}
+
+              {/* Delete account */}
+              <div className="border border-red-500/20 bg-red-500/5 rounded-xl p-4">
+                <p className="text-sm text-white font-medium mb-1">Delete account</p>
+                <p className="text-xs text-[#8e8ea0] mb-3">
+                  Permanently deletes your account and all chat history. This cannot be undone.
+                </p>
+
+                {deleteConfirm ? (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                      <p className="text-xs text-[#8e8ea0]">
+                        All your chats and data will be permanently erased.
+                        Enter your password to confirm.
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showDeletePw ? 'text' : 'password'}
+                        value={deletePw}
+                        onChange={(e) => { setDeletePw(e.target.value); setDeleteError(''); }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleDeleteAccount()}
+                        placeholder="Your current password"
+                        autoFocus
+                        className="w-full bg-[#1a1a1a] border border-red-500/30 text-[#ececec] rounded-xl
+                                   px-3 py-2.5 pr-10 text-sm focus:outline-none focus:border-red-500/60
+                                   placeholder-[#555] transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowDeletePw((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#8e8ea0]"
+                      >
+                        {showDeletePw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {deleteError && (
+                      <p className="flex items-center gap-1.5 text-xs text-red-400">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {deleteError}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={deleteBusy || !deletePw}
+                        className="flex-1 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50
+                                   text-white text-sm font-medium rounded-xl transition-colors"
+                      >
+                        {deleteBusy ? 'Deleting…' : 'Yes, delete my account'}
+                      </button>
+                      <button
+                        onClick={() => { setDeleteConfirm(false); setDeletePw(''); setDeleteError(''); }}
+                        className="px-4 py-2 bg-[#2a2a2a] hover:bg-[#333] text-white text-sm rounded-xl transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeleteConfirm(true)}
+                    className="flex items-center gap-2 px-3 py-2 border border-red-500/30 text-red-400
+                               hover:border-red-400 rounded-lg text-sm transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete account…
+                  </button>
+                )}
+              </div>
             </Section>
           )}
         </div>

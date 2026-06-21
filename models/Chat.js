@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
   role:      { type: String, enum: ['user', 'assistant', 'system'], required: true },
-  content:   { type: String, required: true },
+  content:   { type: String, default: '' },
+  images:    [{ name: String, dataUri: String }],
   timestamp: { type: Date, default: Date.now },
 }, { _id: true });
 
@@ -13,9 +14,11 @@ const chatSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
-  title:    { type: String, default: 'New Chat' },
-  model:    { type: String, default: '' },
-  messages: [messageSchema],
+  title:        { type: String, default: 'New Chat' },
+  model:        { type: String, default: '' },
+  systemPrompt: { type: String, default: '' },
+  tags:         [{ type: String }],
+  messages:     [messageSchema],
 }, { timestamps: true });
 
 // Return chats list without messages (for sidebar)

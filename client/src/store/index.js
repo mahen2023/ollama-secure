@@ -27,12 +27,25 @@ export const useStore = create((set, get) => ({
   setAuth({ token, user }) {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    // Merge server settings over defaults, but never let a null/undefined server
+    // value clobber a valid default (e.g. contextLength: null → keep 4096).
+    const merged = { ...DEFAULT_SETTINGS };
+    const srv = user.settings ?? {};
+    for (const [k, v] of Object.entries(srv)) {
+      if (v !== null && v !== undefined) merged[k] = v;
+    }
     set({
       token,
       user,
-      settings:      { ...DEFAULT_SETTINGS, ...(user.settings ?? {}) },
-      selectedModel: user.settings?.selectedModel || '',
+      settings:      merged,
+      selectedModel: merged.selectedModel || '',
     });
+  },
+
+  // Replace stored token without touching user/settings — used after password change
+  refreshToken(token) {
+    localStorage.setItem(TOKEN_KEY, token);
+    set({ token });
   },
 
   logout() {
@@ -115,6 +128,13 @@ export const useStore = create((set, get) => ({
     });
   },
 
+  setMessages(messages) {
+    set((s) => {
+      if (!s.currentChat) return {};
+      return { currentChat: { ...s.currentChat, messages } };
+    });
+  },
+
   // ── Settings (synced to MongoDB) ────────────────────────────────────────────
   settings: { ...DEFAULT_SETTINGS, ...(storedUser?.settings ?? {}) },
 
@@ -138,8 +158,10 @@ export const useStore = create((set, get) => ({
   },
 
   // ── UI state ─────────────────────────────────────────────────────────────────
-  sidebarOpen: true,
-  toggleSidebar() { set((s) => ({ sidebarOpen: !s.sidebarOpen })); },
+  // Start closed on mobile so the overlay doesn't flash before App.jsx's useEffect fires
+  sidebarOpen: window.innerWidth >= 768,
+  toggleSidebar()   { set((s) => ({ sidebarOpen: !s.sidebarOpen })); },
+  setSidebarOpen(v) { set({ sidebarOpen: v }); },
 
   settingsOpen: false,
   setSettingsOpen(v) { set({ settingsOpen: v }); },

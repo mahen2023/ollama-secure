@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
     dailyTokens: { type: Number, default: 0 }, // 0 = unlimited
     totalTokens: { type: Number, default: 0 },
   },
+  passwordChangedAt: { type: Date },  // set on every password change (not on initial create)
   settings: {
     systemPrompt:  { type: String,  default: '' },
     temperature:   { type: Number,  default: 0.7 },
@@ -25,6 +26,9 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('save', async function () {
   if (this.isModified('password')) {
     this.password = await bcrypt.hash(this.password, 12);
+    // Stamp only on password *change*, not initial creation — so the just-issued
+    // registration token (iat ≈ now) doesn't immediately fail the iat check.
+    if (!this.isNew) this.passwordChangedAt = new Date();
   }
 });
 

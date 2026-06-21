@@ -1,5 +1,48 @@
-const router = require('express').Router();
-const Chat   = require('../models/Chat');
+const router         = require('express').Router();
+const Chat           = require('../models/Chat');
+const pdfParse       = require('pdf-parse');
+const makeRateLimiter = require('../middleware/rateLimit');
+let mammoth;
+try { mammoth = require('mammoth'); } catch { /* optional — DOCX support */ }
+
+// 10 MB base64 ≈ 7.5 MB decoded file — keeps pdf-parse memory usage sane
+const MAX_EXTRACT_B64 = 10 * 1024 * 1024;
+// 5 MB base64 per image ≈ 3.75 MB decoded — enforces the client-side resize contract
+const MAX_IMAGE_B64   =  5 * 1024 * 1024;
+
+const extractRateLimit = makeRateLimiter({ windowMs: 60_000, max: 10,
+  message: 'Too many extract requests — wait a minute and try again' });
+
+// POST /chats/extract-text — server-side text extraction for PDF / DOCX
+// Body: { base64: string, mimeType: string }
+router.post('/extract-text', extractRateLimit, async (req, res) => {
+  const { base64, mimeType } = req.body;
+  if (!base64 || !mimeType) {
+    return res.status(400).json({ error: 'base64 and mimeType are required' });
+  }
+  if (base64.length > MAX_EXTRACT_B64) {
+    return res.status(413).json({ error: 'File too large (max ~7 MB)' });
+  }
+  try {
+    const buffer = Buffer.from(base64, 'base64');
+
+    if (mimeType === 'application/pdf') {
+      const data = await pdfParse(buffer);
+      return res.json({ text: data.text.trim() });
+    }
+
+    const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (mimeType === DOCX) {
+      if (!mammoth) return res.status(501).json({ error: 'DOCX support not installed (run: npm install mammoth)' });
+      const result = await mammoth.extractRawText({ buffer });
+      return res.json({ text: result.value.trim() });
+    }
+
+    res.status(400).json({ error: `Unsupported type: ${mimeType}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Text extraction failed: ' + err.message });
+  }
+});
 
 // GET /chats — list (no messages)
 router.get('/', async (req, res) => {
@@ -37,8 +80,14 @@ router.get('/:id', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const allowed = {};
-    if (req.body.title !== undefined) allowed.title = req.body.title;
-    if (req.body.model !== undefined) allowed.model = req.body.model;
+    if (req.body.title        !== undefined) allowed.title        = req.body.title;
+    if (req.body.model        !== undefined) allowed.model        = req.body.model;
+    if (req.body.systemPrompt !== undefined) allowed.systemPrompt = req.body.systemPrompt;
+    if (req.body.tags         !== undefined) {
+      allowed.tags = Array.isArray(req.body.tags)
+        ? req.body.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 8)
+        : [];
+    }
     const chat = await Chat.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
       allowed,
@@ -69,6 +118,15 @@ router.post('/:id/messages', async (req, res) => {
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
     }
+    // Reject oversized images before they reach MongoDB
+    for (const m of messages) {
+      if (!Array.isArray(m.images)) continue;
+      for (const img of m.images) {
+        if (typeof img.dataUri === 'string' && img.dataUri.length > MAX_IMAGE_B64) {
+          return res.status(413).json({ error: 'Image too large — maximum ~4 MB per image after compression' });
+        }
+      }
+    }
     const chat = await Chat.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
       { $push: { messages: { $each: messages } } },
@@ -76,6 +134,25 @@ router.post('/:id/messages', async (req, res) => {
     );
     if (!chat) return res.status(404).json({ error: 'Chat not found' });
     res.json(chat);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /chats/:id/messages/truncate — keep only the first N messages
+router.patch('/:id/messages/truncate', async (req, res) => {
+  const fromIndex = parseInt(req.body.fromIndex, 10);
+  if (!Number.isFinite(fromIndex) || fromIndex < 0) {
+    return res.status(400).json({ error: 'fromIndex must be a non-negative integer' });
+  }
+  try {
+    const chat = await Chat.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      { $push: { messages: { $each: [], $slice: fromIndex } } },
+      { new: true }
+    );
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
