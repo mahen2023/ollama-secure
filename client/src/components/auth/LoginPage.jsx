@@ -60,13 +60,13 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm,  setConfirm]  = useState('');
-  const [banner,   setBanner]   = useState(null); // { type, message }
+  const [banner,   setBanner]   = useState(null);
   const [loading,  setLoading]  = useState(false);
 
   const { setAuth } = useStore();
   const navigate    = useNavigate();
 
-  const reset = (newTab) => {
+  const switchTab = (newTab) => {
     setTab(newTab);
     setBanner(null);
     setUsername('');
@@ -112,34 +112,25 @@ export default function LoginPage() {
     }
   };
 
+  const isLogin = tab === 'login';
+
   return (
     <div className="min-h-screen bg-[#212121] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
+
         {/* Logo */}
         <div className="text-center mb-8">
           <AppLogo className="w-14 h-14 rounded-2xl mx-auto mb-4 shadow-lg" />
-          <h1 className="text-2xl font-semibold text-white">Ollama Chat</h1>
-          <p className="text-[#8e8ea0] text-sm mt-1">Your private AI assistant</p>
+          <h1 className="text-2xl font-semibold text-white">
+            {isLogin ? 'Welcome back' : 'Create account'}
+          </h1>
+          <p className="text-[#8e8ea0] text-sm mt-1">
+            {isLogin ? 'Sign in to your account' : 'Join Ollama Chat'}
+          </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl overflow-hidden shadow-xl">
-          {/* Tabs */}
-          <div className="flex border-b border-[#3a3a3a]">
-            {['login', 'register'].map((t) => (
-              <button
-                key={t}
-                onClick={() => reset(t)}
-                className={`flex-1 py-3 text-sm font-medium transition-colors capitalize
-                  ${tab === t
-                    ? 'text-white border-b-2 border-[#10a37f] bg-[#2f2f2f]'
-                    : 'text-[#8e8ea0] hover:text-white'}`}
-              >
-                {t === 'login' ? 'Sign in' : 'Create account'}
-              </button>
-            ))}
-          </div>
-
+        <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl shadow-xl">
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <Field
               label="Username" icon={User} type="text"
@@ -148,10 +139,10 @@ export default function LoginPage() {
             <Field
               label="Password" icon={Lock} type="password"
               value={password} onChange={setPassword}
-              placeholder={tab === 'register' ? 'Min 6 characters' : 'Enter your password'}
+              placeholder={isLogin ? 'Enter your password' : 'Min 6 characters'}
               error={!!banner && banner.message?.toLowerCase().includes('password')}
             />
-            {tab === 'register' && (
+            {!isLogin && (
               <Field
                 label="Confirm password" icon={Lock} type="password"
                 value={confirm} onChange={setConfirm} placeholder="Repeat your password"
@@ -165,20 +156,29 @@ export default function LoginPage() {
               type="submit"
               disabled={loading || !username.trim() || !password || banner?.type === 'pending'}
               className="w-full bg-[#10a37f] hover:bg-[#0d9270] disabled:opacity-50 disabled:cursor-not-allowed
-                         text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+                         text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm mt-2"
             >
               {loading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> {tab === 'login' ? 'Signing in…' : 'Creating account…'}</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> {isLogin ? 'Signing in…' : 'Creating account…'}</>
               ) : (
-                tab === 'login' ? 'Sign in' : 'Create account'
+                isLogin ? 'Sign in' : 'Create account'
               )}
             </button>
+
+            {/* Switch link */}
+            <p className="text-center text-sm text-[#8e8ea0] pt-1">
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
+              <button
+                type="button"
+                onClick={() => switchTab(isLogin ? 'register' : 'login')}
+                className="text-[#10a37f] hover:text-[#0d9270] font-medium transition-colors"
+              >
+                {isLogin ? 'Sign up' : 'Sign in'}
+              </button>
+            </p>
           </form>
         </div>
 
-        <p className="text-center text-[#555] text-xs mt-4">
-          Credentials are stored securely in MongoDB
-        </p>
       </div>
     </div>
   );

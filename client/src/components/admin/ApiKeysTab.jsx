@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Key, Trash2, RefreshCw } from 'lucide-react';
 import { useStore } from '../../store';
 import { getAdminApiKeys, revokeAdminApiKey } from '../../api/admin';
@@ -9,15 +9,16 @@ export default function ApiKeysTab() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
+    setError('');
     getAdminApiKeys(token)
       .then(setKeys)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [token]);
 
-  useEffect(load, [token]);
+  useEffect(load, [load]);
 
   const revoke = async (id, name) => {
     if (!confirm(`Revoke key "${name}"? Any app using it will immediately lose access.`)) return;
@@ -29,28 +30,41 @@ export default function ApiKeysTab() {
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center gap-2 py-20 text-[#555]">
-      <RefreshCw className="w-5 h-5 animate-spin" /> Loading keys…
-    </div>
-  );
-
-  if (keys.length === 0) return (
-    <div className="text-center py-16 border border-dashed border-[#2a2a2a] rounded-xl">
-      <Key className="w-10 h-10 text-[#2a2a2a] mx-auto mb-3" />
-      <p className="text-[#555] text-sm">No active API keys</p>
-    </div>
-  );
-
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-[#555]">All active API keys across users</p>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#8e8ea0] hover:text-white
+                     bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-[#2a2a2a] rounded-lg
+                     transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
+      </div>
+
       {error && (
         <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
           {error}
         </p>
       )}
 
-      <div className="overflow-x-auto">
+      {loading && (
+        <div className="flex items-center justify-center gap-2 py-16 text-[#555]">
+          <RefreshCw className="w-4 h-4 animate-spin" /> Loading keys…
+        </div>
+      )}
+
+      {!loading && keys.length === 0 && (
+        <div className="text-center py-16 border border-dashed border-[#2a2a2a] rounded-xl">
+          <Key className="w-10 h-10 text-[#2a2a2a] mx-auto mb-3" />
+          <p className="text-[#555] text-sm">No active API keys</p>
+        </div>
+      )}
+
+      {!loading && keys.length > 0 && <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#2a2a2a]">
@@ -100,7 +114,7 @@ export default function ApiKeysTab() {
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
       <p className="text-xs text-[#555]">
         Admins can create API keys in Settings → API Keys. Keys grant access to <code className="font-mono">/v1/*</code>.
       </p>

@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, User, ThumbsUp, ThumbsDown, X, ChevronLeft, ChevronRight, Pencil, RefreshCw, Play } from 'lucide-react';
+import { Copy, Check, User, ThumbsUp, ThumbsDown, X, ChevronLeft, ChevronRight, Pencil, RefreshCw, Play, FileText } from 'lucide-react';
 import AppLogo from '../AppLogo';
 
 function CopyBtn({ text, className = '' }) {
@@ -198,7 +198,7 @@ export default function MessageItem({ message, index, isGenerating, isStopped, o
   const [editing,  setEditing]  = useState(false);
   const [draft,    setDraft]    = useState('');
 
-  const startEdit = () => { setDraft(message.content); setEditing(true); };
+  const startEdit = () => { setDraft(message.displayContent ?? message.content); setEditing(true); };
   const cancelEdit = () => setEditing(false);
   const submitEdit = () => {
     const trimmed = draft.trim();
@@ -222,6 +222,7 @@ export default function MessageItem({ message, index, isGenerating, isStopped, o
       <div className={`flex-1 min-w-0 ${isUser ? 'flex justify-end' : ''}`}>
         {isUser ? (
           <div className="max-w-[85%] flex flex-col items-end gap-1.5">
+            {/* Image attachments */}
             {message.images?.length > 0 && (
               <div className={`grid gap-1.5 w-full ${message.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 {message.images.map((img, i) => (
@@ -239,6 +240,19 @@ export default function MessageItem({ message, index, isGenerating, isStopped, o
             )}
             {lightbox !== null && (
               <Lightbox images={message.images} startIndex={lightbox} onClose={() => setLightbox(null)} />
+            )}
+
+            {/* File attachment chips (non-image) */}
+            {message.files?.length > 0 && (
+              <div className="flex flex-wrap justify-end gap-1.5 w-full">
+                {message.files.map((f, i) => (
+                  <div key={i}
+                    className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg px-2 py-1 max-w-[180px]">
+                    <FileText className="w-3.5 h-3.5 text-[#10a37f] shrink-0" />
+                    <span className="text-xs text-[#adadad] truncate flex-1">{f.name}</span>
+                  </div>
+                ))}
+              </div>
             )}
 
             {editing ? (
@@ -273,10 +287,10 @@ export default function MessageItem({ message, index, isGenerating, isStopped, o
                 </div>
               </div>
             ) : (
-              message.content && (
+              (message.displayContent ?? message.content) && (
                 <div className="group/msg relative bg-[#2f2f2f] text-[#ececec] rounded-2xl rounded-tr-sm
                                 px-4 py-3 text-sm leading-7 w-full">
-                  <span className="whitespace-pre-wrap">{message.content}</span>
+                  <span className="whitespace-pre-wrap">{message.displayContent ?? message.content}</span>
                   {!isGenerating && onEdit && (
                     <button
                       onClick={startEdit}

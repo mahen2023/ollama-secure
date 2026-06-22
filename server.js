@@ -133,15 +133,13 @@ async function proxyOllama(req, res, { targetUrl, userId, apiKeyId = null, sourc
         } catch { /* not valid JSON */ }
       }
       res.end();
-      // Log every completed inference — even when Ollama omits token counts (prompt cache hits)
-      if (seenDone) {
-        UsageLog.create({
-          userId, apiKeyId, source,
-          model: req.body.model,
-          promptTokens, completionTokens,
-          totalTokens: promptTokens + completionTokens,
-        }).catch(() => {});
-      }
+      // Log every completed inference request; token counts are 0 when Ollama omits them
+      UsageLog.create({
+        userId, apiKeyId, source,
+        model: req.body.model,
+        promptTokens, completionTokens,
+        totalTokens: promptTokens + completionTokens,
+      }).catch((err) => console.error('[UsageLog] Failed to save:', err.message));
     });
 
     response.data.on('error', () => {

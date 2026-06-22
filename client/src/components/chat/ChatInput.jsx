@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Square, AlertCircle, Plus, X, FileText, Loader2 } from 'lucide-react';
+import { ArrowUp, Square, AlertCircle, Plus, X, FileText, Loader2 } from 'lucide-react';
 import ModelSelector from '../ui/ModelSelector';
 import { useStore } from '../../store';
 
@@ -363,7 +363,7 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
             >
               {isGenerating
                 ? <Square className="w-3.5 h-3.5 fill-current" />
-                : <Send className="w-3.5 h-3.5" />}
+                : <ArrowUp className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>

@@ -172,9 +172,11 @@ export default function ChatPage() {
 
     const imageFiles = attachments.filter((a) => a.kind === 'image');
     const textFiles  = attachments.filter((a) => a.kind === 'text');
-    let displayContent = content;
+
+    // apiContent includes file text so the model has the full context
+    let apiContent = content;
     if (textFiles.length > 0) {
-      displayContent += textFiles
+      apiContent += textFiles
         .map((f) => `\n\n**${f.name}:**\n\`\`\`\n${f.text}\n\`\`\``)
         .join('');
     }
@@ -193,14 +195,16 @@ export default function ChatPage() {
 
     useStore.getState().appendMessage({
       role: 'user',
-      content: displayContent,
+      content: apiContent,          // full content used by toApiMsg for model history
+      displayContent: content,      // user-typed text only — shown in the chat bubble
       images: imageFiles.map((f) => ({ name: f.name, dataUri: f.dataUri })),
+      files: textFiles.map((f) => ({ name: f.name, kind: f.kind, type: f.type })),
     });
     useStore.getState().appendMessage({ role: 'assistant', content: '' });
 
     appendMessages(token, chatId, [{
       role: 'user',
-      content: displayContent,
+      content: apiContent,
       ...(imageFiles.length > 0 && { images: imageFiles.map((f) => ({ name: f.name, dataUri: f.dataUri })) }),
     }]).catch(() => {});
 
@@ -209,7 +213,7 @@ export default function ChatPage() {
       history,
       userApiMsg: {
         role: 'user',
-        content: displayContent,
+        content: apiContent,
         ...(imageFiles.length > 0 && { images: imageFiles.map((f) => f.base64) }),
       },
       onDone: isFirstMessage ? () => {
