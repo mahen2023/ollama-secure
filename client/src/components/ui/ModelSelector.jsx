@@ -27,6 +27,21 @@ export default function ModelSelector() {
       setRefreshing(false);
     }
   };
+ // Filter out embedding models
+  const chatModels = models.filter((m) => {
+    const name   = m.name?.toLowerCase() ?? '';
+    const family = m.details?.family?.toLowerCase() ?? '';
+    return !name.includes('embed') && !family.includes('embed') && !family.includes('bert');
+  });
+
+  // Group by details.family; fall back to 'other'
+  const grouped = chatModels.reduce((acc, m) => {
+    const key = m.details?.family ?? 'other';
+    (acc[key] ??= []).push(m);
+    return acc;
+  }, {});
+  const families   = Object.keys(grouped).sort();
+  const showGroups = families.length > 1;
 
   return (
     <div className="relative" ref={ref}>
@@ -49,10 +64,16 @@ export default function ModelSelector() {
             </button>
           </div>
           <div className="max-h-64 overflow-y-auto pb-2">
-            {models.length === 0 ? (
-              <p className="text-[#555] text-sm text-center py-4">No models — pull one first</p>
-            ) : (
-              models.map((m) => (
+            {(() => {
+              const chatModels = models.filter((m) => {
+                const name = m.name?.toLowerCase() ?? '';
+                const family = m.details?.family?.toLowerCase() ?? '';
+                return !name.includes('embed') && !family.includes('embed') && !family.includes('bert');
+              });
+              return chatModels.length === 0 ? (
+                <p className="text-[#555] text-sm text-center py-4">No models — pull one first</p>
+              ) : (
+                chatModels.map((m) => (
                 <button
                   key={m.name}
                   onClick={() => { setSelectedModel(m.name); setOpen(false); }}
@@ -74,8 +95,9 @@ export default function ModelSelector() {
                     <span className="ml-auto text-xs bg-[#10a37f]/20 text-[#10a37f] px-1.5 py-0.5 rounded">active</span>
                   )}
                 </button>
-              ))
-            )}
+                ))
+              );
+            })()}
           </div>
         </div>
       )}
