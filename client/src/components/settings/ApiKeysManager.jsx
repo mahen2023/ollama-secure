@@ -54,7 +54,13 @@ curl ${origin}/v1/chat \\
 curl ${origin}/v1/generate \\
   -H "x-api-key: ok_..." \\
   -H "Content-Type: application/json" \\
-  -d '{"model":"llama3.2","prompt":"Hello!","stream":false}'`;
+  -d '{"model":"llama3.2","prompt":"Hello!","stream":false}'
+
+# Embeddings
+curl ${origin}/v1/embed \\
+  -H "x-api-key: ok_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"nomic-embed-text","input":"Your text here"}'`;
 
 export default function ApiKeysManager() {
   const { token } = useStore();
@@ -204,10 +210,12 @@ export default function ApiKeysManager() {
 
         <div className="grid grid-cols-2 gap-2 text-xs">
           {[
-            { method: 'GET',  path: '/v1/tags',     desc: 'List available models' },
-            { method: 'POST', path: '/v1/chat',     desc: 'Chat (streaming ok)' },
-            { method: 'POST', path: '/v1/generate', desc: 'Text generation' },
-            { method: 'POST', path: '/v1/pull',     desc: 'Pull a model' },
+            { method: 'GET',  path: '/v1/tags',       desc: 'List available models' },
+            { method: 'POST', path: '/v1/chat',       desc: 'Chat (streaming ok)' },
+            { method: 'POST', path: '/v1/generate',   desc: 'Text generation' },
+            { method: 'POST', path: '/v1/embed',      desc: 'Generate embeddings' },
+            { method: 'POST', path: '/v1/embeddings', desc: 'Embeddings (OpenAI compat)' },
+            { method: 'POST', path: '/v1/pull',       desc: 'Pull a model' },
           ].map(({ method, path, desc }) => (
             <div key={path} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2">
               <div className="flex items-center gap-2">

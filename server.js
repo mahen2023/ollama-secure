@@ -97,19 +97,25 @@ async function proxyOllama(req, res, { targetUrl, userId, apiKeyId = null, sourc
     let completionTokens = 0;
     let seenDone = false;
 
+    function extractTokens(obj) {
+      if (obj.done === true) {
+        // Chat / generate streaming final chunk
+        promptTokens     = obj.prompt_eval_count ?? 0;
+        completionTokens = obj.eval_count ?? 0;
+        seenDone = true;
+      } else if (obj.embeddings !== undefined || obj.embedding !== undefined) {
+        // Embed response — no done flag, only prompt tokens
+        promptTokens = obj.prompt_eval_count ?? 0;
+        seenDone = true;
+      }
+    }
+
     function parseLines(text) {
       const nl = text.lastIndexOf('\n');
       if (nl === -1) return text;
       for (const line of text.slice(0, nl + 1).split('\n')) {
         if (!line.trim()) continue;
-        try {
-          const obj = JSON.parse(line);
-          if (obj.done === true) {
-            promptTokens     = obj.prompt_eval_count ?? 0;
-            completionTokens = obj.eval_count ?? 0;
-            seenDone = true;
-          }
-        } catch { /* non-JSON line — skip */ }
+        try { extractTokens(JSON.parse(line)); } catch { /* non-JSON line — skip */ }
       }
       return text.slice(nl + 1);
     }
@@ -123,14 +129,7 @@ async function proxyOllama(req, res, { targetUrl, userId, apiKeyId = null, sourc
     response.data.on('end', () => {
       // Flush any remainder that arrived without a trailing newline
       if (buf.trim()) {
-        try {
-          const obj = JSON.parse(buf.trim());
-          if (obj.done === true) {
-            promptTokens     = obj.prompt_eval_count ?? 0;
-            completionTokens = obj.eval_count ?? 0;
-            seenDone = true;
-          }
-        } catch { /* not valid JSON */ }
+        try { extractTokens(JSON.parse(buf.trim())); } catch { /* not valid JSON */ }
       }
       res.end();
       // Log every completed inference request; token counts are 0 when Ollama omits them
@@ -166,12 +165,14 @@ app.use('/api', requireAuth, checkLimits, (req, res) => {
 // ── API-key-protected external integration endpoint ───────────────────────────
 //
 //  Maps /v1/* → Ollama /api/*
+//  /v1/embeddings is remapped to /api/embed (OpenAI-compat uses `input`, same as /api/embed)
 //  Auth: x-api-key header (manage keys in Settings → API Keys)
 //
 app.use('/v1', apiKeyAuth, checkLimits, (req, res) => {
   const base = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+  const ollamaPath = req.url.replace(/^\/embeddings(\?|$)/, '/embed$1');
   proxyOllama(req, res, {
-    targetUrl: `${base}/api${req.url}`,
+    targetUrl: `${base}/api${ollamaPath}`,
     userId:    req.userId,
     apiKeyId:  req.apiKeyId,
     source:    'api',
