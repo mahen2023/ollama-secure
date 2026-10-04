@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, Square, AlertCircle, Plus, X, FileText, Loader2 } from 'lucide-react';
+import { ArrowUp, Square, AlertCircle, Plus, X, FileText, Loader2, Mic, AudioLines } from 'lucide-react';
 import ModelSelector from '../ui/ModelSelector';
 import { useStore } from '../../store';
+import { listen, canListen } from '../../speech';
 
 const TEMPLATES = [
   { id: 'explain',   label: 'Explain',      desc: 'Explain code or a concept step by step',       prompt: 'Explain the following step by step:\n\n' },
@@ -121,12 +122,14 @@ function FileChip({ file, onRemove }) {
   );
 }
 
-export default function ChatInput({ onSend, onStop, isGenerating }) {
+export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
   const [input,       setInput]       = useState('');
   const [attachments, setAttachments] = useState([]);
   const [processing,  setProcessing]  = useState(false);
   const [fileError,   setFileError]   = useState('');
   const [menuIndex,   setMenuIndex]   = useState(0);
+  const [dictating,   setDictating]   = useState(false);
+  const stopDictationRef = useRef(null);
   const textareaRef  = useRef(null);
   const fileInputRef = useRef(null);
   const menuRef      = useRef(null);
@@ -211,6 +214,20 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
     if (results.length > 0) setAttachments((prev) => [...prev, ...results]);
     if (errors.length > 0) setFileError(errors.join(' · '));
     setProcessing(false);
+  };
+
+  // Dictation: speech is appended to whatever is already typed
+  const toggleDictation = () => {
+    if (dictating) return stopDictationRef.current?.();
+    const base = input.trim();
+    const join = (t) => [base, t.trim()].filter(Boolean).join(' ');
+    setDictating(true);
+    setFileError('');
+    stopDictationRef.current = listen({
+      onPartial: (t) => setInput(join(t)),
+      onEnd:     (t) => { setInput(join(t)); setDictating(false); textareaRef.current?.focus(); },
+      onError:   (msg) => { setFileError(msg); setDictating(false); },
+    });
   };
 
   const removeAttachment = (i) => setAttachments((prev) => prev.filter((_, idx) => idx !== i));
@@ -352,7 +369,34 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
               <ModelSelector />
             </div>
 
-            {/* Send / Stop */}
+            {/* Dictate */}
+            {canListen && !isGenerating && (
+              <button
+                onClick={toggleDictation}
+                disabled={!selectedModel}
+                title={dictating ? 'Stop dictation' : 'Dictate'}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0
+                  disabled:text-[#555] disabled:cursor-not-allowed
+                  ${dictating ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-[#3a3a3a] hover:bg-[#444] text-[#adadad] hover:text-white'}`}
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Voice mode — takes the send button's place while the input is empty */}
+            {onVoice && canListen && !isGenerating && !canSend && !dictating ? (
+              <button
+                onClick={onVoice}
+                disabled={!selectedModel}
+                title="Voice mode"
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0
+                           bg-[#10a37f] hover:bg-[#0d9270] text-white
+                           disabled:bg-[#3a3a3a] disabled:text-[#555] disabled:cursor-not-allowed"
+              >
+                <AudioLines className="w-4 h-4" />
+              </button>
+            ) : (
+            /* Send / Stop */
             <button
               onClick={isGenerating ? onStop : send}
               disabled={!isGenerating && !canSend}
@@ -365,6 +409,7 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
                 ? <Square className="w-3.5 h-3.5 fill-current" />
                 : <ArrowUp className="w-3.5 h-3.5" />}
             </button>
+            )}
           </div>
         </div>
 

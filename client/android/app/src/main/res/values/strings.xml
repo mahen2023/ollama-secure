@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ollama Secure</string>
+    <string name="title_activity_main">Ollama Secure</string>
+    <string name="package_name">com.ollamasecure.app</string>
+    <string name="custom_url_scheme">com.ollamasecure.app</string>
+</resources>

@@ -4,9 +4,10 @@ import react from '@vitejs/plugin-react';
 const BACKEND = 'http://localhost:3001';
 const proxyTo = { target: BACKEND, changeOrigin: true };
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: '/chat',
+  // Android app serves the build from the WebView root; the web build lives under /chat
+  base: mode === 'mobile' ? '/' : '/chat',
   server: {
     port: 5173,
     proxy: {
@@ -19,4 +20,4 @@ export default defineConfig({
       '/admin':    proxyTo,
     },
   },
-});
+}));

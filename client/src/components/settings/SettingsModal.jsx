@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, MessageSquare, Sliders, Layers, Zap, Trash2, AlertTriangle, Info, UserCircle, KeyRound, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { X, MessageSquare, Sliders, Layers, Zap, Trash2, AlertTriangle, Info, UserCircle, KeyRound, Lock, Eye, EyeOff, CheckCircle2, AudioLines } from 'lucide-react';
 import { useStore } from '../../store';
 import { clearMessages } from '../../api/chats';
 import { changePassword, deleteAccount } from '../../api/auth';
@@ -46,6 +46,7 @@ export default function SettingsModal() {
     contextLength: Number.isFinite(settings.contextLength) && settings.contextLength > 0
       ? settings.contextLength : 4096,
     temperature: Number.isFinite(settings.temperature) ? settings.temperature : 0.7,
+    speechRate:  Number.isFinite(settings.speechRate)  ? settings.speechRate  : 1,
   }));
   const [tab,          setTab]          = useState('General');
   const [confirmClear, setConfirmClear] = useState(false);
@@ -110,6 +111,7 @@ export default function SettingsModal() {
       // Normalise numerics before persisting so we never write null/NaN to the DB
       contextLength: Math.max(512, Math.round(local.contextLength || 4096)),
       temperature:   Math.round(Math.max(0, Math.min(2, local.temperature ?? 0.7)) * 10) / 10,
+      speechRate:    Math.round(Math.max(0.5, Math.min(2, local.speechRate ?? 1)) * 10) / 10,
     });
     setSettingsOpen(false);
   };
@@ -180,6 +182,26 @@ export default function SettingsModal() {
                   </div>
                   <Toggle value={local.streamEnabled} onChange={(v) => patch('streamEnabled', v)} />
                 </div>
+              </Section>
+
+              <Section icon={AudioLines} title="Voice">
+                <div className="flex justify-between mb-1">
+                  <p className="text-sm text-[#ececec]">Speech speed</p>
+                  <span className="text-sm text-[#10a37f] font-mono font-semibold">{local.speechRate.toFixed(1)}×</span>
+                </div>
+                <input type="range" min="0.5" max="2" step="0.1"
+                  value={local.speechRate}
+                  onChange={(e) => patch('speechRate', parseFloat(e.target.value))}
+                  className="w-full accent-[#10a37f] cursor-pointer" />
+                <p className="text-sm text-[#ececec] pt-2">Voice mode instructions</p>
+                <textarea
+                  value={local.voicePrompt ?? ''}
+                  onChange={(e) => patch('voicePrompt', e.target.value)}
+                  rows={3}
+                  className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-xl px-3 py-2.5
+                             focus:outline-none focus:border-[#10a37f] placeholder-[#555] text-sm resize-none"
+                />
+                <p className="text-xs text-[#555]">Added to the system prompt while voice mode is open.</p>
               </Section>
             </>
           )}

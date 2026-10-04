@@ -1,0 +1,5 @@
+{
+  "appId": "com.ollamasecure.app",
+  "appName": "Ollama Secure",
+  "webDir": "dist"
+}

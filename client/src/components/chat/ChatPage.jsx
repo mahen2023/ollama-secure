@@ -6,6 +6,7 @@ import { fetchModels, streamChat, generateTitle } from '../../api/ollama';
 import { createChat, getChat, patchChat, appendMessages, truncateMessages } from '../../api/chats';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
+import VoiceMode from './VoiceMode';
 
 function formatAsMarkdown(chat, title) {
   const lines = [`# ${title ?? chat.title}`, ''];
@@ -56,6 +57,7 @@ export default function ChatPage() {
   const [stoppedIndex,   setStoppedIndex]   = useState(null);
   const [sysPromptOpen,  setSysPromptOpen]  = useState(false);
   const [sysPromptDraft, setSysPromptDraft] = useState('');
+  const [voiceOpen,      setVoiceOpen]      = useState(false);
 
   useEffect(() => {
     if (!currentChatId || !token) return;
@@ -81,7 +83,8 @@ export default function ChatPage() {
   const runGeneration = useCallback(async ({ chatId, history, userApiMsg, prefill, onDone }) => {
     const { token, selectedModel, settings } = useStore.getState();
     const chatSystemPrompt = useStore.getState().currentChat?.systemPrompt;
-    const effectiveSystemPrompt = chatSystemPrompt || settings.systemPrompt;
+    const voicePrompt = useStore.getState().voiceActive && settings.voicePrompt;
+    const effectiveSystemPrompt = [chatSystemPrompt || settings.systemPrompt, voicePrompt].filter(Boolean).join('\n\n');
     useStore.getState().setIsGenerating(true);
     accumRef.current = prefill ?? '';
     abortRef.current = new AbortController();
@@ -376,8 +379,11 @@ export default function ChatPage() {
   }, []);
 
   // ── Welcome screen ────────────────────────────────────────────────────────────
+  // One render tree for all three states so the voice overlay isn't remounted
+  // when its first message turns the welcome screen into a chat.
+  let body;
   if (!currentChatId) {
-    return (
+    body = (
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile sidebar toggle on welcome screen */}
         <div className="md:hidden flex px-4 pt-3">
@@ -410,13 +416,11 @@ export default function ChatPage() {
             ))}
           </div>
         </div>
-        <ChatInput onSend={handleSend} onStop={handleStop} isGenerating={isGenerating} />
+        <ChatInput onSend={handleSend} onStop={handleStop} isGenerating={isGenerating} onVoice={() => setVoiceOpen(true)} />
       </div>
     );
-  }
-
-  if (!currentChat) {
-    return (
+  } else if (!currentChat) {
+    body = (
       <div className="flex-1 flex items-center justify-center">
         <div className="flex items-center gap-2 text-[#8e8ea0]">
           <div className="w-4 h-4 border-2 border-[#10a37f] border-t-transparent rounded-full animate-spin" />
@@ -424,127 +428,134 @@ export default function ChatPage() {
         </div>
       </div>
     );
-  }
-
-  const meta = chats.find((c) => c._id === currentChatId);
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-2.5 border-b border-[#2a2a2a] bg-[#212121] shrink-0">
-        {/* Hamburger — mobile only, shown when sidebar is closed */}
-        <button
-          className="md:hidden p-1.5 -ml-1.5 rounded-lg text-[#555] hover:text-[#adadad]
-                     hover:bg-[#2a2a2a] transition-colors shrink-0"
-          onClick={() => useStore.getState().setSidebarOpen(true)}
-          title="Open sidebar"
-        >
-          <Menu className="w-4 h-4" />
-        </button>
-        <span className="text-sm text-[#adadad] truncate flex-1">{meta?.title ?? currentChat.title}</span>
-        {currentChat.model && (
-          <span className="text-xs bg-[#2a2a2a] border border-[#3a3a3a] text-[#8e8ea0] px-2 py-0.5 rounded-full shrink-0">
-            {currentChat.model}
+  } else {
+    const meta = chats.find((c) => c._id === currentChatId);
+    body = (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-2.5 border-b border-[#2a2a2a] bg-[#212121] shrink-0">
+          {/* Hamburger — mobile only, shown when sidebar is closed */}
+          <button
+            className="md:hidden p-1.5 -ml-1.5 rounded-lg text-[#555] hover:text-[#adadad]
+                       hover:bg-[#2a2a2a] transition-colors shrink-0"
+            onClick={() => useStore.getState().setSidebarOpen(true)}
+            title="Open sidebar"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+          <span className="text-sm text-[#adadad] truncate flex-1">{meta?.title ?? currentChat.title}</span>
+          {currentChat.model && (
+            <span className="text-xs bg-[#2a2a2a] border border-[#3a3a3a] text-[#8e8ea0] px-2 py-0.5 rounded-full shrink-0">
+              {currentChat.model}
+            </span>
+          )}
+          <span className="text-xs text-[#555] shrink-0">
+            {currentChat.messages.filter((m) => m.role === 'user').length} messages
           </span>
-        )}
-        <span className="text-xs text-[#555] shrink-0">
-          {currentChat.messages.filter((m) => m.role === 'user').length} messages
-        </span>
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            onClick={handleOpenSysPrompt}
-            title={currentChat.systemPrompt ? 'Edit chat system prompt' : 'Add chat system prompt'}
-            className={`relative p-1.5 rounded-lg transition-colors
-              ${sysPromptOpen
-                ? 'text-[#10a37f] bg-[#2a2a2a]'
-                : 'text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a]'}`}
-          >
-            <Terminal className="w-3.5 h-3.5" />
-            {currentChat.systemPrompt && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#10a37f]" />
-            )}
-          </button>
-          <button
-            onClick={handleCopyChat}
-            title={copied ? 'Copied!' : 'Copy as Markdown'}
-            className="p-1.5 rounded-lg text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] transition-colors"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-[#10a37f]" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
-          <button
-            onClick={handleDownload}
-            title="Download as Markdown"
-            className="p-1.5 rounded-lg text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Per-chat system prompt editor */}
-      {sysPromptOpen && (
-        <div className="border-b border-[#2a2a2a] bg-[#1a1a1a] px-5 py-3 shrink-0">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-[#8e8ea0]">System prompt — this chat only</span>
-              {!sysPromptDraft && settings.systemPrompt && (
-                <span className="text-[10px] text-[#444] truncate max-w-[260px]">
-                  global: "{settings.systemPrompt.slice(0, 50)}{settings.systemPrompt.length > 50 ? '…' : ''}"
-                </span>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              onClick={handleOpenSysPrompt}
+              title={currentChat.systemPrompt ? 'Edit chat system prompt' : 'Add chat system prompt'}
+              className={`relative p-1.5 rounded-lg transition-colors
+                ${sysPromptOpen
+                  ? 'text-[#10a37f] bg-[#2a2a2a]'
+                  : 'text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a]'}`}
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              {currentChat.systemPrompt && (
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#10a37f]" />
               )}
-            </div>
-            <textarea
-              autoFocus
-              value={sysPromptDraft}
-              onChange={(e) => setSysPromptDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setSysPromptOpen(false);
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSaveSysPrompt();
-              }}
-              placeholder={
-                settings.systemPrompt
-                  ? `Leave empty to use global: "${settings.systemPrompt.slice(0, 60)}${settings.systemPrompt.length > 60 ? '…' : ''}"`
-                  : 'Add a system prompt for this chat…'
-              }
-              rows={3}
-              className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl px-3 py-2.5 text-sm
-                         text-[#ececec] placeholder-[#444] focus:outline-none focus:border-[#10a37f]
-                         resize-none leading-6 transition-colors"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-[10px] text-[#444]">
-                {sysPromptDraft
-                  ? 'Overrides the global system prompt for this chat'
-                  : 'Empty → falls back to the global system prompt'}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSysPromptOpen(false)}
-                  className="px-3 py-1.5 text-xs text-[#8e8ea0] hover:text-white rounded-lg
-                             hover:bg-[#2a2a2a] transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveSysPrompt}
-                  className="px-3 py-1.5 text-xs bg-[#10a37f] hover:bg-[#0d9270] text-white
-                             rounded-lg transition-colors"
-                >
-                  Save
-                </button>
+            </button>
+            <button
+              onClick={handleCopyChat}
+              title={copied ? 'Copied!' : 'Copy as Markdown'}
+              className="p-1.5 rounded-lg text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] transition-colors"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-[#10a37f]" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={handleDownload}
+              title="Download as Markdown"
+              className="p-1.5 rounded-lg text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Per-chat system prompt editor */}
+        {sysPromptOpen && (
+          <div className="border-b border-[#2a2a2a] bg-[#1a1a1a] px-5 py-3 shrink-0">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-[#8e8ea0]">System prompt — this chat only</span>
+                {!sysPromptDraft && settings.systemPrompt && (
+                  <span className="text-[10px] text-[#444] truncate max-w-[260px]">
+                    global: "{settings.systemPrompt.slice(0, 50)}{settings.systemPrompt.length > 50 ? '…' : ''}"
+                  </span>
+                )}
+              </div>
+              <textarea
+                autoFocus
+                value={sysPromptDraft}
+                onChange={(e) => setSysPromptDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setSysPromptOpen(false);
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSaveSysPrompt();
+                }}
+                placeholder={
+                  settings.systemPrompt
+                    ? `Leave empty to use global: "${settings.systemPrompt.slice(0, 60)}${settings.systemPrompt.length > 60 ? '…' : ''}"`
+                    : 'Add a system prompt for this chat…'
+                }
+                rows={3}
+                className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl px-3 py-2.5 text-sm
+                           text-[#ececec] placeholder-[#444] focus:outline-none focus:border-[#10a37f]
+                           resize-none leading-6 transition-colors"
+              />
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-[10px] text-[#444]">
+                  {sysPromptDraft
+                    ? 'Overrides the global system prompt for this chat'
+                    : 'Empty → falls back to the global system prompt'}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSysPromptOpen(false)}
+                    className="px-3 py-1.5 text-xs text-[#8e8ea0] hover:text-white rounded-lg
+                               hover:bg-[#2a2a2a] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveSysPrompt}
+                    className="px-3 py-1.5 text-xs bg-[#10a37f] hover:bg-[#0d9270] text-white
+                               rounded-lg transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      <MessageList
-        messages={currentChat.messages}
-        isGenerating={isGenerating}
-        stoppedIndex={stoppedIndex}
-        onEdit={handleEdit}
-        onRegenerate={handleRegenerate}
-        onContinue={handleContinue}
-      />
-      <ChatInput onSend={handleSend} onStop={handleStop} isGenerating={isGenerating} />
-    </div>
+        )}
+        <MessageList
+          messages={currentChat.messages}
+          isGenerating={isGenerating}
+          stoppedIndex={stoppedIndex}
+          onEdit={handleEdit}
+          onRegenerate={handleRegenerate}
+          onContinue={handleContinue}
+        />
+        <ChatInput onSend={handleSend} onStop={handleStop} isGenerating={isGenerating} onVoice={() => setVoiceOpen(true)} />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {body}
+      {voiceOpen && <VoiceMode onSend={handleSend} onStop={handleStop} onClose={() => setVoiceOpen(false)} />}
+    </>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Key, Plus, Trash2, Copy, Check, AlertTriangle, Terminal, RefreshCw } from 'lucide-react';
 import { useStore } from '../../store';
 import { listApiKeys, createApiKey, revokeApiKey } from '../../api/apikeys';
+import API from '../../apiBase';
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
@@ -108,9 +109,9 @@ export default function ApiKeysManager() {
     revokeApiKey(token, id).catch(() => {});
   };
 
-  const serverOrigin = window.location.port === '5173'
+  const serverOrigin = API || (window.location.port === '5173'
     ? 'http://localhost:3001'   // dev mode — Vite is not the server
-    : window.location.origin;
+    : window.location.origin);
 
   return (
     <div className="space-y-5">
