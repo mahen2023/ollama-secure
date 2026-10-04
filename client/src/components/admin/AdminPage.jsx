@@ -20,7 +20,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#212121] flex flex-col">
+    <div className="min-h-[100dvh] bg-[#212121] flex flex-col safe-area">
       {/* Header */}
       <div className="border-b border-[#2a2a2a] bg-[#171717] px-6 py-4 flex items-center gap-4 shrink-0">
         <button

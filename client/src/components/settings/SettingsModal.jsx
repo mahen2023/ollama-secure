@@ -133,10 +133,10 @@ export default function SettingsModal() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-[#212121] md:bg-black/70 md:backdrop-blur-sm flex items-center justify-center z-50 safe-area md:p-4"
       onClick={(e) => e.target === e.currentTarget && setSettingsOpen(false)}
     >
-      <div className="bg-[#212121] border border-[#3a3a3a] rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-[#212121] md:border md:border-[#3a3a3a] md:rounded-2xl w-full h-full md:h-auto md:max-w-lg md:shadow-2xl flex flex-col md:max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a] shrink-0">
           <h2 className="text-base font-semibold text-white">Settings</h2>

@@ -2,10 +2,11 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { Code2, Globe, Zap, Lightbulb, Download, Copy, Check, Terminal, Menu } from 'lucide-react';
 import AppLogo from '../AppLogo';
 import { useStore } from '../../store';
-import { fetchModels, streamChat, generateTitle } from '../../api/ollama';
+import { fetchModels, streamChat, generateTitle, VOICE_KEEP_ALIVE } from '../../api/ollama';
 import { createChat, getChat, patchChat, appendMessages, truncateMessages } from '../../api/chats';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
+import ModelSelector from '../ui/ModelSelector';
 import VoiceMode from './VoiceMode';
 
 function formatAsMarkdown(chat, title) {
@@ -35,6 +36,27 @@ function toApiMsg(m) {
   return msg;
 }
 
+// Header buttons: 44px touch targets on phones, compact on desktop
+const HEADER_BTN  = 'p-2.5 md:p-1.5 rounded-lg transition-colors shrink-0';
+const HEADER_ICON = 'w-5 h-5 md:w-3.5 md:h-3.5';
+
+// Top bar shared by the welcome screen and chats: [menu] [model] … [children]
+function TopBar({ children }) {
+  return (
+    <div className="flex items-center gap-1 md:gap-3 px-2 md:px-5 py-1.5 md:py-2 border-b border-[#2a2a2a] bg-[#212121] shrink-0">
+      <button
+        className={`md:hidden text-[#8e8ea0] hover:text-white hover:bg-[#2a2a2a] ${HEADER_BTN}`}
+        onClick={() => useStore.getState().setSidebarOpen(true)}
+        title="Open sidebar"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+      <div className="min-w-0 shrink"><ModelSelector /></div>
+      {children}
+    </div>
+  );
+}
+
 const SUGGESTIONS = [
   { icon: Code2,     prompt: 'Write a Python function that reads a CSV and returns summary statistics.' },
   { icon: Globe,     prompt: 'Translate "Hello, how are you?" into French, Spanish, and Japanese.' },
@@ -49,6 +71,7 @@ export default function ChatPage() {
     setCurrentChat, prependChat, updateChatMeta,
     appendMessage, updateLastMessage, setMessages,
     settings, isGenerating, setIsGenerating,
+    voiceOpen, setVoiceOpen,
   } = useStore();
 
   const abortRef = useRef(null);
@@ -57,7 +80,6 @@ export default function ChatPage() {
   const [stoppedIndex,   setStoppedIndex]   = useState(null);
   const [sysPromptOpen,  setSysPromptOpen]  = useState(false);
   const [sysPromptDraft, setSysPromptDraft] = useState('');
-  const [voiceOpen,      setVoiceOpen]      = useState(false);
 
   useEffect(() => {
     if (!currentChatId || !token) return;
@@ -83,7 +105,9 @@ export default function ChatPage() {
   const runGeneration = useCallback(async ({ chatId, history, userApiMsg, prefill, onDone }) => {
     const { token, selectedModel, settings } = useStore.getState();
     const chatSystemPrompt = useStore.getState().currentChat?.systemPrompt;
-    const voicePrompt = useStore.getState().voiceActive && settings.voicePrompt;
+    const { voiceOpen } = useStore.getState();
+    const voicePrompt = voiceOpen && settings.voicePrompt;
+    const keepAlive   = voiceOpen ? VOICE_KEEP_ALIVE : undefined;
     const effectiveSystemPrompt = [chatSystemPrompt || settings.systemPrompt, voicePrompt].filter(Boolean).join('\n\n');
     useStore.getState().setIsGenerating(true);
     accumRef.current = prefill ?? '';
@@ -112,6 +136,7 @@ export default function ChatPage() {
           systemPrompt:  effectiveSystemPrompt,
           temperature:   settings.temperature,
           contextLength: settings.contextLength,
+          keepAlive,
           signal: abortRef.current.signal,
           onChunk(chunk) {
             accumRef.current += chunk;
@@ -130,6 +155,7 @@ export default function ChatPage() {
             model: selectedModel,
             messages: [...sysMsg, ...apiMessages],
             stream: false,
+            keep_alive: keepAlive,
             options: {
               ...(Number.isFinite(settings.temperature)                                             && { temperature: settings.temperature }),
               ...(Number.isFinite(settings.contextLength) && settings.contextLength > 0             && { num_ctx:      settings.contextLength }),
@@ -220,7 +246,14 @@ export default function ChatPage() {
         ...(imageFiles.length > 0 && { images: imageFiles.map((f) => f.base64) }),
       },
       onDone: isFirstMessage ? () => {
-        const { token: t, selectedModel: m } = useStore.getState();
+        const { token: t, selectedModel: m, voiceOpen } = useStore.getState();
+        // In voice mode the model is busy with the next turn — title from the words instead
+        if (voiceOpen) {
+          const title = content.split(/\s+/).slice(0, 6).join(' ');
+          patchChat(t, chatId, { title }).catch(() => {});
+          useStore.getState().updateChatMeta(chatId, { title });
+          return;
+        }
         generateTitle(t, m, content)
           .then((title) => {
             if (!title) return;
@@ -385,21 +418,12 @@ export default function ChatPage() {
   if (!currentChatId) {
     body = (
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile sidebar toggle on welcome screen */}
-        <div className="md:hidden flex px-4 pt-3">
-          <button
-            className="p-1.5 rounded-lg text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] transition-colors"
-            onClick={() => useStore.getState().setSidebarOpen(true)}
-            title="Open sidebar"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
+        <TopBar />
+        <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-8 overflow-y-auto">
           <AppLogo className="w-16 h-16 rounded-2xl mb-5 shadow-lg" />
           <h1 className="text-2xl font-semibold text-white mb-1">How can I help you?</h1>
           <p className="text-[#8e8ea0] text-sm mb-8">
-            {selectedModel ? `Model: ${selectedModel}` : 'Select a model to start'}
+            {selectedModel ? 'Type, dictate, or tap the voice button' : 'Select a model at the top to start'}
           </p>
           <div className="grid grid-cols-2 gap-3 w-full max-w-md">
             {SUGGESTIONS.map(({ icon: Icon, prompt }, i) => (
@@ -432,36 +456,22 @@ export default function ChatPage() {
     const meta = chats.find((c) => c._id === currentChatId);
     body = (
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-2.5 border-b border-[#2a2a2a] bg-[#212121] shrink-0">
-          {/* Hamburger — mobile only, shown when sidebar is closed */}
-          <button
-            className="md:hidden p-1.5 -ml-1.5 rounded-lg text-[#555] hover:text-[#adadad]
-                       hover:bg-[#2a2a2a] transition-colors shrink-0"
-            onClick={() => useStore.getState().setSidebarOpen(true)}
-            title="Open sidebar"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-[#adadad] truncate flex-1">{meta?.title ?? currentChat.title}</span>
-          {currentChat.model && (
-            <span className="text-xs bg-[#2a2a2a] border border-[#3a3a3a] text-[#8e8ea0] px-2 py-0.5 rounded-full shrink-0">
-              {currentChat.model}
-            </span>
-          )}
-          <span className="text-xs text-[#555] shrink-0">
+        <TopBar>
+          <span className="hidden md:block text-sm text-[#adadad] truncate flex-1">{meta?.title ?? currentChat.title}</span>
+          <div className="flex-1 md:hidden" />
+          <span className="hidden md:inline text-xs text-[#555] shrink-0">
             {currentChat.messages.filter((m) => m.role === 'user').length} messages
           </span>
           <div className="flex items-center gap-0.5 shrink-0">
             <button
               onClick={handleOpenSysPrompt}
               title={currentChat.systemPrompt ? 'Edit chat system prompt' : 'Add chat system prompt'}
-              className={`relative p-1.5 rounded-lg transition-colors
+              className={`relative ${HEADER_BTN}
                 ${sysPromptOpen
                   ? 'text-[#10a37f] bg-[#2a2a2a]'
-                  : 'text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a]'}`}
+                  : 'text-[#8e8ea0] md:text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a]'}`}
             >
-              <Terminal className="w-3.5 h-3.5" />
+              <Terminal className={HEADER_ICON} />
               {currentChat.systemPrompt && (
                 <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#10a37f]" />
               )}
@@ -469,19 +479,19 @@ export default function ChatPage() {
             <button
               onClick={handleCopyChat}
               title={copied ? 'Copied!' : 'Copy as Markdown'}
-              className="p-1.5 rounded-lg text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] transition-colors"
+              className={`text-[#8e8ea0] md:text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] ${HEADER_BTN}`}
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-[#10a37f]" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? <Check className={`${HEADER_ICON} text-[#10a37f]`} /> : <Copy className={HEADER_ICON} />}
             </button>
             <button
               onClick={handleDownload}
               title="Download as Markdown"
-              className="p-1.5 rounded-lg text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] transition-colors"
+              className={`text-[#8e8ea0] md:text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] ${HEADER_BTN}`}
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className={HEADER_ICON} />
             </button>
           </div>
-        </div>
+        </TopBar>
 
         {/* Per-chat system prompt editor */}
         {sysPromptOpen && (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Mic, Loader2, AudioLines } from 'lucide-react';
 import { useStore } from '../../store';
 import { listen, speak, stopSpeaking, toSpeech } from '../../speech';
+import { warmModel } from '../../api/ollama';
 
 const messageCount = () => useStore.getState().currentChat?.messages?.length ?? 0;
 
@@ -20,6 +21,14 @@ const HINT = {
   speaking:  'Speaking… tap to interrupt',
 };
 
+// Next speakable piece of the streamed reply, or undefined if none is ready yet.
+// The first piece is cut early (first clause, or 8 words) so speech starts fast;
+// later pieces take every complete sentence available.
+function nextChunk(rest, isFirst) {
+  if (isFirst) return rest.match(/^[\s\S]{12,}?[.!?:;,\n](?=\s)/)?.[0] ?? rest.match(/^(\S+\s+){8}/)?.[0];
+  return rest.match(/^[\s\S]*[.!?:;\n](?=\s)/)?.[0];
+}
+
 // Hands-free loop: listen → send through the normal chat flow → speak the
 // reply sentence by sentence while it streams → listen again.
 export default function VoiceMode({ onSend, onStop, onClose }) {
@@ -33,12 +42,12 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
   const spokenRef     = useRef(0);      // chars of the reply already queued for speech
   const pendingRef    = useRef(0);      // queued sentences not yet finished
   const baseLenRef    = useRef(0);      // message count before the current send
-  const queueRef      = useRef(Promise.resolve());
 
   const startListening = () => {
     setPhase('listening'); setTranscript(''); setError('');
     const turn = turnRef.current;
     stopListenRef.current = listen({
+      silenceMs: 900,
       onPartial: setTranscript,
       onEnd: (text) => {
         stopListenRef.current = null;
@@ -57,8 +66,8 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
     pendingRef.current++;
     setPhase('speaking');
     const rate = useStore.getState().settings.speechRate || 1;
-    queueRef.current = queueRef.current
-      .then(() => turn === turnRef.current && speak(text, rate))
+    // Handed to the engine right away (queued behind what's playing) so there's no gap between sentences
+    speak(text, rate, { queue: true })
       .catch(() => {})
       .then(() => {
         if (turn !== turnRef.current) return;
@@ -66,10 +75,10 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
       });
   };
 
-  // Queue every complete sentence that has streamed in so far (all of it once final).
+  // Queue whatever is speakable so far (all of it once final).
   const flush = (final, turn) => {
     const rest = replySince(baseLenRef.current).slice(spokenRef.current);
-    const chunk = final ? rest : rest.match(/^[\s\S]*[.!?:;\n](?=\s)/)?.[0];
+    const chunk = final ? rest : nextChunk(rest, spokenRef.current === 0);
     if (!chunk) return;
     spokenRef.current += chunk.length;
     enqueue(chunk, turn);
@@ -96,7 +105,6 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
     if (awaitingRef.current) onStop();
     awaitingRef.current = false;
     pendingRef.current = 0;
-    queueRef.current = Promise.resolve();
     stopSpeaking();
   };
 
@@ -109,19 +117,21 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
   const close = () => { reset(); onClose(); };
 
   useEffect(() => {
-    useStore.getState().setVoiceActive(true);
+    // Load the model into memory while the user is still talking
+    const { token, selectedModel } = useStore.getState();
+    if (selectedModel) warmModel(token, selectedModel);
     const unsub = useStore.subscribe(() => {
       if (awaitingRef.current) flush(false, turnRef.current);
     });
     startListening();
-    return () => { unsub(); reset(); useStore.getState().setVoiceActive(false); };
+    return () => { unsub(); reset(); };
   }, []);
 
   const Icon = phase === 'thinking' ? Loader2 : phase === 'speaking' ? AudioLines : Mic;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#171717] flex flex-col items-center justify-between
-                    pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] px-6">
+    <div className="fixed inset-0 z-50 bg-[#171717] safe-area">
+    <div className="h-full flex flex-col items-center justify-between p-6">
       <div className="w-full flex justify-end">
         <button onClick={close} title="End voice mode"
           className="w-10 h-10 rounded-full bg-[#2a2a2a] hover:bg-[#333] flex items-center justify-center text-[#adadad]">
@@ -142,6 +152,7 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
         {transcript && <p className="text-[#ececec] text-base line-clamp-3">{transcript}</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
       </div>
+    </div>
     </div>
   );
 }

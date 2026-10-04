@@ -141,7 +141,7 @@ function ChatItem({ chat, active, unavailableModel, onSelect, onDelete, onRename
         {/* Hover actions */}
         <div
           className={`flex items-center gap-0.5 shrink-0 transition-opacity
-            ${mode === 'view' ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}
+            ${mode === 'view' ? 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100' : 'opacity-100'}`}
           onClick={(e) => e.stopPropagation()}
         >
           {mode === 'view' ? (
@@ -316,9 +316,9 @@ export default function Sidebar() {
       )}
     <aside className={`
       ${mobileOverlay
-        ? 'fixed inset-y-0 left-0 z-50'
+        ? 'fixed inset-y-0 left-0 z-50 safe-area w-72 max-w-[85vw]'
         : 'relative'}
-      w-64 h-full bg-[#171717] border-r border-[#2a2a2a] flex flex-col shrink-0
+      ${mobileOverlay ? '' : 'w-64'} h-full bg-[#171717] border-r border-[#2a2a2a] flex flex-col shrink-0
       ${mobileOverlay ? 'shadow-2xl' : ''}
     `}>
       {/* Header */}

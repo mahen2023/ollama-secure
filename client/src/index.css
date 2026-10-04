@@ -26,3 +26,14 @@ body {
 .typing-dot { animation: typing-dot 1.2s ease-in-out infinite; }
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Keeps content out from under the status/navigation bars and display cutouts.
+   Capacitor injects --safe-area-inset-* on Android; browsers fall back to env(). */
+@layer utilities {
+  .safe-area {
+    padding-top:    var(--safe-area-inset-top,    env(safe-area-inset-top, 0px));
+    padding-right:  var(--safe-area-inset-right,  env(safe-area-inset-right, 0px));
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    padding-left:   var(--safe-area-inset-left,   env(safe-area-inset-left, 0px));
+  }
+}

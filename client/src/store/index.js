@@ -171,7 +171,7 @@ export const useStore = create((set, get) => ({
   isGenerating: false,
   setIsGenerating(v) { set({ isGenerating: v }); },
 
-  // True while the voice-mode overlay is open — adds settings.voicePrompt to the system prompt
-  voiceActive: false,
-  setVoiceActive(v) { set({ voiceActive: v }); },
+  // Voice-mode overlay — while open, settings.voicePrompt is added to the system prompt
+  voiceOpen: false,
+  setVoiceOpen(v) { set({ voiceOpen: v }); },
 }));

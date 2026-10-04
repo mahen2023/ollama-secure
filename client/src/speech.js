@@ -11,27 +11,45 @@ const lang = navigator.language || 'en-US';
 export const canListen = native || !!WebRecognition;
 export const canSpeak  = native || 'speechSynthesis' in window;
 
-// Listens for one utterance. onPartial gets live text (browser only, Android
-// reports the result at the end). onEnd(text) fires once; text is '' when
-// nothing was heard. Returns a function that ends listening early.
-// ponytail: native runs without partial results — the plugin's partial mode
-// swallows no-speech errors, so end-of-turn can't be detected reliably there.
-export function listen({ onPartial, onEnd, onError }) {
+// Listens for one utterance. onPartial gets live text; onEnd(text) fires once,
+// with '' when nothing was heard. Returns a function that ends listening early.
+// silenceMs: how long a pause (no new words) ends the turn on Android — shorter
+// than Android's own end-of-speech wait, and we skip its final re-recognition.
+// ponytail: fixed silence timeout, a real VAD on mic levels if it cuts people off
+export function listen({ onPartial, onEnd, onError, silenceMs = 1000 }) {
   let ended = false;
   const end = (text) => { if (!ended) { ended = true; onEnd(text); } };
 
   if (native) {
+    let text = '', handles = [], timer, speechEnded = false;
+    const finish = () => {
+      clearTimeout(timer);
+      handles.forEach((h) => h.remove());
+      SpeechRecognition.stop().catch(() => {});
+      end(text);
+    };
+    const arm = (ms) => { clearTimeout(timer); timer = setTimeout(finish, ms); };
     (async () => {
       const { speechRecognition } = await SpeechRecognition.requestPermissions();
-      if (speechRecognition !== 'granted') return onError('Microphone permission denied');
-      try {
-        const { matches } = await SpeechRecognition.start({ language: lang, maxResults: 1, partialResults: false, popup: false });
-        end(matches?.[0] ?? '');
-      } catch {
-        end('');   // no match / speech timeout
-      }
+      if (speechRecognition !== 'granted') { ended = true; return onError('Microphone permission denied'); }
+      handles = await Promise.all([
+        SpeechRecognition.addListener('partialResults', ({ matches }) => {
+          if (!matches?.[0]) return;
+          text = matches[0];
+          onPartial?.(text);
+          arm(speechEnded ? 300 : silenceMs);
+        }),
+        // Android detected end of speech — give its final result a moment, then stop
+        SpeechRecognition.addListener('listeningState', ({ status }) => {
+          if (status === 'stopped') { speechEnded = true; arm(300); }
+        }),
+      ]);
+      if (ended) return handles.forEach((h) => h.remove());
+      arm(8000);   // nothing said at all
+      // Partial mode never reports errors (e.g. no speech) — the timers above cover that
+      await SpeechRecognition.start({ language: lang, maxResults: 1, partialResults: true, popup: false }).catch(finish);
     })();
-    return () => SpeechRecognition.stop().catch(() => {});
+    return finish;
   }
 
   if (!WebRecognition) { onError('Speech recognition is not supported in this browser'); return () => {}; }
@@ -53,13 +71,16 @@ export function listen({ onPartial, onEnd, onError }) {
 
 // Resolves when the utterance finishes. After stopSpeaking() the native promise
 // may never settle, so callers must not wait on it after an interrupt.
-export function speak(text, rate = 1) {
-  if (native) return TextToSpeech.speak({ text, lang, rate });
+// queue: add after whatever is already playing instead of cutting it off, so
+// sentences can be handed to the engine ahead of time and play back to back.
+export function speak(text, rate = 1, { queue = false } = {}) {
+  if (native) return TextToSpeech.speak({ text, lang, rate, queueStrategy: queue ? 1 : 0 });
   return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
     u.rate = rate;
     u.onend = u.onerror = resolve;
+    if (!queue) speechSynthesis.cancel();
     speechSynthesis.speak(u);
   });
 }

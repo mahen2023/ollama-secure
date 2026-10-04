@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { App as NativeApp } from '@capacitor/app';
 import { useStore } from './store';
 import { verifyToken } from './api/auth';
 import { listChats } from './api/chats';
@@ -9,6 +11,23 @@ import Sidebar     from './components/layout/Sidebar';
 import ChatPage    from './components/chat/ChatPage';
 import SettingsModal from './components/settings/SettingsModal';
 import AdminPage   from './components/admin/AdminPage';
+
+// Android back button: close the top-most overlay first, then navigate back,
+// and only leave the app (to the background, like Home) when there's nothing else.
+function useAndroidBack() {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const handle = NativeApp.addListener('backButton', ({ canGoBack }) => {
+      const s = useStore.getState();
+      if (s.voiceOpen)    return s.setVoiceOpen(false);
+      if (s.settingsOpen) return s.setSettingsOpen(false);
+      if (s.sidebarOpen && window.innerWidth < 768) return s.setSidebarOpen(false);
+      if (canGoBack)      return window.history.back();
+      NativeApp.minimizeApp();
+    });
+    return () => { handle.then((h) => h.remove()); };
+  }, []);
+}
 
 function RequireAuth({ children }) {
   const token = useStore((s) => s.token);
@@ -71,7 +90,7 @@ function AppLayout() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-[#212121] overflow-hidden">
+    <div className="flex h-[100dvh] bg-[#212121] overflow-hidden safe-area">
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0">
         <ChatPage />
@@ -83,6 +102,7 @@ function AppLayout() {
 
 export default function App() {
   const { token, logout, setChats, setModels, setSelectedModel, setAuth } = useStore();
+  useAndroidBack();
 
   useEffect(() => {
     if (!token) return;

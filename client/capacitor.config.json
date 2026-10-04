@@ -1,5 +1,12 @@
 {
   "appId": "com.ollamasecure.app",
   "appName": "Ollama Secure",
-  "webDir": "dist"
+  "webDir": "dist",
+  "backgroundColor": "#212121",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
 }
