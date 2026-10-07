@@ -20,6 +20,8 @@ const userSchema = new mongoose.Schema({
     contextLength: { type: Number,  default: 4096 },
     streamEnabled: { type: Boolean, default: true },
     selectedModel: { type: String,  default: '' },
+    speechRate:    { type: Number,  default: 1 },
+    voicePrompt:   { type: String,  default: 'You are in a spoken voice conversation. Reply briefly and conversationally in plain sentences. Do not use markdown, lists, tables, code blocks, or emoji.' },
   },
 }, { timestamps: true });
 

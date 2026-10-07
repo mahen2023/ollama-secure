@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, Square, AlertCircle, Plus, X, FileText, Loader2 } from 'lucide-react';
-import ModelSelector from '../ui/ModelSelector';
+import { ArrowUp, Square, AlertCircle, Plus, X, FileText, Loader2, Mic, AudioLines } from 'lucide-react';
 import { useStore } from '../../store';
+import { listen, canListen } from '../../speech';
 
 const TEMPLATES = [
   { id: 'explain',   label: 'Explain',      desc: 'Explain code or a concept step by step',       prompt: 'Explain the following step by step:\n\n' },
@@ -17,6 +17,8 @@ const TEMPLATES = [
   { id: 'sql',       label: 'SQL query',    desc: 'Write or fix a SQL query',                      prompt: 'Write a SQL query to ' },
   { id: 'regex',     label: 'Regex',        desc: 'Create a regular expression pattern',           prompt: 'Write a regular expression that matches ' },
 ];
+
+const IS_TOUCH = window.matchMedia('(hover: none)').matches;
 
 const ACCEPT = [
   'image/*',
@@ -121,12 +123,14 @@ function FileChip({ file, onRemove }) {
   );
 }
 
-export default function ChatInput({ onSend, onStop, isGenerating }) {
+export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
   const [input,       setInput]       = useState('');
   const [attachments, setAttachments] = useState([]);
   const [processing,  setProcessing]  = useState(false);
   const [fileError,   setFileError]   = useState('');
   const [menuIndex,   setMenuIndex]   = useState(0);
+  const [dictating,   setDictating]   = useState(false);
+  const stopDictationRef = useRef(null);
   const textareaRef  = useRef(null);
   const fileInputRef = useRef(null);
   const menuRef      = useRef(null);
@@ -213,6 +217,20 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
     setProcessing(false);
   };
 
+  // Dictation: speech is appended to whatever is already typed
+  const toggleDictation = () => {
+    if (dictating) return stopDictationRef.current?.();
+    const base = input.trim();
+    const join = (t) => [base, t.trim()].filter(Boolean).join(' ');
+    setDictating(true);
+    setFileError('');
+    stopDictationRef.current = listen({
+      onPartial: (t) => setInput(join(t)),
+      onEnd:     (t) => { setInput(join(t)); setDictating(false); textareaRef.current?.focus(); },
+      onError:   (msg) => { setFileError(msg); setDictating(false); },
+    });
+  };
+
   const removeAttachment = (i) => setAttachments((prev) => prev.filter((_, idx) => idx !== i));
 
   const send = () => {
@@ -231,7 +249,8 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
       if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); insertTemplate(menuTemplates[menuIndex]); return; }
     }
     if (showMenu && e.key === 'Escape') { setInput(''); return; }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    // Touch keyboards: Enter adds a new line, the send button sends
+    if (e.key === 'Enter' && !e.shiftKey && !IS_TOUCH) { e.preventDefault(); send(); }
   };
 
   const onDrop = (e) => {
@@ -240,7 +259,7 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
   };
 
   return (
-    <div className="bg-[#212121] px-4 pb-4 pt-2">
+    <div className="bg-[#212121] px-2 md:px-4 pb-2 md:pb-4 pt-2">
       <div className="max-w-3xl mx-auto">
         {!selectedModel && (
           <div className="flex items-center gap-2 text-amber-400 text-xs mb-2 px-1">
@@ -259,7 +278,7 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
         )}
 
         <div
-          className="relative bg-[#2f2f2f] border border-[#3a3a3a] rounded-2xl
+          className="relative bg-[#2f2f2f] border border-[#3a3a3a] rounded-3xl
                      focus-within:border-[#4a4a4a] transition-colors shadow-sm"
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
@@ -309,21 +328,8 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
             </div>
           )}
 
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={selectedModel ? `Message ${selectedModel.split(':')[0]}…` : 'Select a model first'}
-            disabled={!selectedModel}
-            rows={1}
-            className="w-full bg-transparent text-[#ececec] placeholder-[#555] resize-none
-                       px-4 pt-3.5 pb-12 focus:outline-none text-sm leading-6 max-h-52
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-          />
-
-          {/* Bottom bar — attach | [flex-1 model selector] | send */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center px-3 pb-3 gap-2">
+          {/* One row: attach | text | dictate | voice-or-send */}
+          <div className="flex items-end gap-1 p-1.5">
             <input
               ref={fileInputRef}
               type="file"
@@ -338,33 +344,67 @@ export default function ChatInput({ onSend, onStop, isGenerating }) {
               onClick={() => !processing && fileInputRef.current?.click()}
               title="Attach files, images, or PDFs"
               disabled={processing}
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0
-                         bg-[#3a3a3a] hover:bg-[#444] text-[#adadad] hover:text-white
-                         transition-colors disabled:cursor-wait"
+              className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
+                         hover:bg-[#3a3a3a] text-[#adadad] hover:text-white disabled:cursor-wait"
             >
               {processing
-                ? <Loader2 className="w-4 h-4 animate-spin text-[#10a37f]" />
-                : <Plus className="w-4 h-4" />}
+                ? <Loader2 className="w-5 h-5 md:w-4 md:h-4 animate-spin text-[#10a37f]" />
+                : <Plus className="w-5 h-5 md:w-4 md:h-4" />}
             </button>
 
-            {/* Model selector grows to fill remaining space */}
-            <div className="flex-1 min-w-0">
-              <ModelSelector />
-            </div>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={selectedModel ? 'Message' : 'Select a model first'}
+              disabled={!selectedModel}
+              rows={1}
+              className="flex-1 min-w-0 bg-transparent text-[#ececec] placeholder-[#555] resize-none
+                         px-1 py-2 md:py-1 focus:outline-none text-base md:text-sm leading-6 max-h-52
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            />
 
-            {/* Send / Stop */}
-            <button
-              onClick={isGenerating ? onStop : send}
-              disabled={!isGenerating && !canSend}
-              title={isGenerating ? 'Stop generating' : 'Send message'}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0
-                bg-[#3a3a3a] hover:bg-[#444]
-                ${isGenerating || canSend ? 'text-white' : 'text-[#555] cursor-not-allowed'}`}
-            >
-              {isGenerating
-                ? <Square className="w-3.5 h-3.5 fill-current" />
-                : <ArrowUp className="w-3.5 h-3.5" />}
-            </button>
+            {/* Dictate */}
+            {canListen && !isGenerating && (
+              <button
+                onClick={toggleDictation}
+                disabled={!selectedModel}
+                title={dictating ? 'Stop dictation' : 'Dictate'}
+                className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
+                  disabled:text-[#555] disabled:cursor-not-allowed
+                  ${dictating ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-[#3a3a3a] text-[#adadad] hover:text-white'}`}
+              >
+                <Mic className="w-5 h-5 md:w-4 md:h-4" />
+              </button>
+            )}
+
+            {/* Voice mode — takes the send button's place while the input is empty */}
+            {onVoice && canListen && !isGenerating && !canSend && !dictating ? (
+              <button
+                onClick={onVoice}
+                disabled={!selectedModel}
+                title="Voice mode"
+                className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
+                           bg-[#10a37f] hover:bg-[#0d9270] text-white
+                           disabled:bg-[#3a3a3a] disabled:text-[#555] disabled:cursor-not-allowed"
+              >
+                <AudioLines className="w-5 h-5 md:w-4 md:h-4" />
+              </button>
+            ) : (
+              /* Send / Stop */
+              <button
+                onClick={isGenerating ? onStop : send}
+                disabled={!isGenerating && !canSend}
+                title={isGenerating ? 'Stop generating' : 'Send message'}
+                className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
+                  ${isGenerating || canSend ? 'bg-white text-black hover:bg-[#ddd]' : 'bg-[#3a3a3a] text-[#555] cursor-not-allowed'}`}
+              >
+                {isGenerating
+                  ? <Square className="w-3.5 h-3.5 fill-current" />
+                  : <ArrowUp className="w-5 h-5 md:w-4 md:h-4" />}
+              </button>
+            )}
           </div>
         </div>
 

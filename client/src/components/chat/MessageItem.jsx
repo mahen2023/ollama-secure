@@ -4,8 +4,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, User, ThumbsUp, ThumbsDown, X, ChevronLeft, ChevronRight, Pencil, RefreshCw, Play, FileText } from 'lucide-react';
+import { Copy, Check, User, ThumbsUp, ThumbsDown, X, ChevronLeft, ChevronRight, Pencil, RefreshCw, Play, FileText, Volume2, VolumeX } from 'lucide-react';
 import AppLogo from '../AppLogo';
+import { useStore } from '../../store';
+import { speak, stopSpeaking, toSpeech, canSpeak } from '../../speech';
 
 function CopyBtn({ text, className = '' }) {
   const [copied, setCopied] = useState(false);
@@ -21,6 +23,32 @@ function CopyBtn({ text, className = '' }) {
       className={`p-1.5 rounded-lg text-[#8e8ea0] hover:text-white hover:bg-[#3a3a3a] transition-colors ${className}`}
     >
       {copied ? <Check className="w-3.5 h-3.5 text-[#10a37f]" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
+
+// Only one message reads aloud at a time; starting another stops the current one.
+let stopActive = null;
+
+function SpeakBtn({ text }) {
+  const [on, setOn] = useState(false);
+  const toggle = () => {
+    const wasOn = on;
+    stopActive?.();
+    if (wasOn) return;
+    const me   = () => { stopSpeaking(); done(); };
+    const done = () => { setOn(false); if (stopActive === me) stopActive = null; };
+    stopActive = me;
+    setOn(true);
+    speak(toSpeech(text), useStore.getState().settings.speechRate || 1).finally(done);
+  };
+  return (
+    <button
+      onClick={toggle}
+      title={on ? 'Stop reading' : 'Read aloud'}
+      className={`p-1.5 rounded-lg hover:bg-[#3a3a3a] transition-colors ${on ? 'text-[#10a37f]' : 'text-[#8e8ea0] hover:text-white'}`}
+    >
+      {on ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
     </button>
   );
 }
@@ -332,8 +360,9 @@ export default function MessageItem({ message, index, isGenerating, isStopped, o
                     )}
                   </div>
                 )}
-                <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
                   <CopyBtn text={message.content} />
+                  {canSpeak && <SpeakBtn text={message.content} />}
                   {!isGenerating && onRegenerate && (
                     <button
                       onClick={() => onRegenerate(index)}

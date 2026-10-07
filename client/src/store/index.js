@@ -9,6 +9,8 @@ const DEFAULT_SETTINGS = {
   contextLength: 4096,
   streamEnabled: true,
   selectedModel: '',
+  speechRate:    1,
+  voicePrompt:   'You are in a spoken voice conversation. Reply briefly and conversationally in plain sentences. Do not use markdown, lists, tables, code blocks, or emoji.',
 };
 
 function loadUser() {
@@ -168,4 +170,8 @@ export const useStore = create((set, get) => ({
 
   isGenerating: false,
   setIsGenerating(v) { set({ isGenerating: v }); },
+
+  // Voice-mode overlay — while open, settings.voicePrompt is added to the system prompt
+  voiceOpen: false,
+  setVoiceOpen(v) { set({ voiceOpen: v }); },
 }));

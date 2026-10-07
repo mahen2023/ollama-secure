@@ -15,7 +15,7 @@ function buildOptions(temperature, contextLength) {
   return opts;
 }
 
-export async function streamChat({ token, model, messages, systemPrompt, temperature, contextLength, onChunk, onDone, signal }) {
+export async function streamChat({ token, model, messages, systemPrompt, temperature, contextLength, keepAlive, onChunk, onDone, signal }) {
   const payload = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
@@ -23,7 +23,7 @@ export async function streamChat({ token, model, messages, systemPrompt, tempera
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: h(token),
-    body: JSON.stringify({ model, messages: payload, stream: true, options: buildOptions(temperature, contextLength) }),
+    body: JSON.stringify({ model, messages: payload, stream: true, keep_alive: keepAlive, options: buildOptions(temperature, contextLength) }),
     signal,
   });
 
@@ -58,6 +58,18 @@ export async function streamChat({ token, model, messages, systemPrompt, tempera
   }
   await onDone?.();
 }
+
+// Loads the model into memory without generating anything (Ollama: empty prompt).
+export function warmModel(token, model) {
+  return fetch('/api/generate', {
+    method: 'POST',
+    headers: h(token),
+    body: JSON.stringify({ model, keep_alive: VOICE_KEEP_ALIVE }),
+  }).catch(() => {});
+}
+
+// How long Ollama keeps the model loaded after a voice-mode request (default is 5m)
+export const VOICE_KEEP_ALIVE = '30m';
 
 export async function generateTitle(token, model, userMessage) {
   const res = await fetch('/api/chat', {

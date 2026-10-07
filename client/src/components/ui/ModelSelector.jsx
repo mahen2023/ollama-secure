@@ -4,7 +4,7 @@ import { useStore } from '../../store';
 import { fetchModels } from '../../api/ollama';
 
 export default function ModelSelector() {
-  const { models, selectedModel, setSelectedModel, setModels, apiKey } = useStore();
+  const { models, selectedModel, setSelectedModel, setModels, token } = useStore();
   const [open, setOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const ref = useRef(null);
@@ -21,7 +21,7 @@ export default function ModelSelector() {
     e.stopPropagation();
     setRefreshing(true);
     try {
-      const m = await fetchModels(apiKey);
+      const m = await fetchModels(token);
       setModels(m);
     } catch { /* silent */ } finally {
       setRefreshing(false);
@@ -47,23 +47,22 @@ export default function ModelSelector() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-[#212121] hover:bg-[#1a1a1a] border border-[#3a3a3a]
-                   text-sm text-white rounded-lg transition-colors w-full max-w-[220px] min-w-0 overflow-hidden"
+        className="flex items-center gap-1.5 px-2.5 py-2 md:py-1.5 hover:bg-[#2a2a2a]
+                   text-base md:text-sm font-medium text-white rounded-lg transition-colors w-full max-w-[260px] min-w-0 overflow-hidden"
       >
-        <Cpu className="w-3.5 h-3.5 text-[#10a37f] shrink-0" />
-        <span className="truncate flex-1 text-left">{selectedModel || 'Select model'}</span>
-        <ChevronDown className={`w-3.5 h-3.5 text-[#8e8ea0] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="truncate text-left">{selectedModel || 'Select model'}</span>
+        <ChevronDown className={`w-4 h-4 text-[#8e8ea0] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-0 sm:left-auto sm:right-0 w-72 max-w-[calc(100vw-2rem)] bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl shadow-2xl z-50">
+        <div className="absolute top-full mt-1 left-0 w-80 max-w-[calc(100vw-1rem)] bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl shadow-2xl z-50">
           <div className="flex items-center justify-between px-3 pt-3 pb-2">
             <span className="text-xs font-semibold text-[#8e8ea0] uppercase tracking-wide">Available Models</span>
-            <button onClick={refresh} className="text-[#8e8ea0] hover:text-white transition-colors">
+            <button onClick={refresh} title="Refresh models" className="p-2 -m-2 text-[#8e8ea0] hover:text-white transition-colors">
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
-          <div className="max-h-64 overflow-y-auto pb-2">
+          <div className="max-h-[60vh] overflow-y-auto pb-2">
             {(() => {
               const chatModels = models.filter((m) => {
                 const name = m.name?.toLowerCase() ?? '';
