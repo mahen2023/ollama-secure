@@ -98,7 +98,7 @@ export const useStore = create((set, get) => ({
 
   setCurrentChatId(id) {
     // Clears currentChat so ChatPage knows to fetch it
-    set({ currentChatId: id, currentChat: id ? null : null });
+    set({ currentChatId: id, currentChat: id ? null : null, saveError: null });
   },
 
   setCurrentChat(chat) {
@@ -122,10 +122,14 @@ export const useStore = create((set, get) => ({
   },
 
   updateLastMessage(content) {
+    get().patchLastMessage({ content });
+  },
+
+  patchLastMessage(fields) {
     set((s) => {
       if (!s.currentChat?.messages?.length) return {};
       const messages = [...s.currentChat.messages];
-      messages[messages.length - 1] = { ...messages[messages.length - 1], content };
+      messages[messages.length - 1] = { ...messages[messages.length - 1], ...fields };
       return { currentChat: { ...s.currentChat, messages } };
     });
   },
@@ -167,6 +171,10 @@ export const useStore = create((set, get) => ({
 
   settingsOpen: false,
   setSettingsOpen(v) { set({ settingsOpen: v }); },
+
+  // Last failed chat-history write (shown as a banner until dismissed or the chat changes)
+  saveError: null,
+  setSaveError(v) { set({ saveError: v }); },
 
   isGenerating: false,
   setIsGenerating(v) { set({ isGenerating: v }); },

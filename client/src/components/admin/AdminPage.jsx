@@ -20,17 +20,17 @@ export default function AdminPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-[100dvh] bg-[#212121] flex flex-col safe-area">
+    <div className="min-h-[100dvh] bg-ink flex flex-col safe-area">
       {/* Header */}
-      <div className="border-b border-[#2a2a2a] bg-[#171717] px-6 py-4 flex items-center gap-4 shrink-0">
+      <div className="border-b border-panel bg-ink-deep px-6 py-4 flex items-center gap-4 shrink-0">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-[#8e8ea0] hover:text-white transition-colors text-sm"
+          className="flex items-center gap-2 text-fg-muted hover:text-white transition-colors text-sm"
         >
           <ArrowLeft className="w-4 h-4" /> Back to chat
         </button>
 
-        <div className="h-5 w-px bg-[#2a2a2a]" />
+        <div className="h-5 w-px bg-panel" />
 
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center">
@@ -41,15 +41,15 @@ export default function AdminPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="border-b border-[#2a2a2a] bg-[#171717] px-6 flex gap-1">
+      <div className="border-b border-panel bg-ink-deep px-6 flex gap-1">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
               ${tab === id
-                ? 'border-[#10a37f] text-white'
-                : 'border-transparent text-[#8e8ea0] hover:text-white'}`}
+                ? 'border-brand text-white'
+                : 'border-transparent text-fg-muted hover:text-white'}`}
           >
             <Icon className="w-4 h-4" />
             {label}

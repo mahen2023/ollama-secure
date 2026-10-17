@@ -93,6 +93,9 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
     await onSend(text);
     if (turn !== turnRef.current) return;
     awaitingRef.current = false;
+    // Failed replies carry .error instead of content — say it rather than going silent
+    const err = useStore.getState().currentChat?.messages?.at(-1)?.error;
+    if (err) enqueue(`The model didn't answer. ${err}`, turn);
     flush(true, turn);
     if (pendingRef.current === 0) startListening();
   };
@@ -130,26 +133,26 @@ export default function VoiceMode({ onSend, onStop, onClose }) {
   const Icon = phase === 'thinking' ? Loader2 : phase === 'speaking' ? AudioLines : Mic;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#171717] safe-area">
+    <div className="fixed inset-0 z-50 bg-ink-deep safe-area">
     <div className="h-full flex flex-col items-center justify-between p-6">
       <div className="w-full flex justify-end">
         <button onClick={close} title="End voice mode"
-          className="w-10 h-10 rounded-full bg-[#2a2a2a] hover:bg-[#333] flex items-center justify-center text-[#adadad]">
+          className="w-10 h-10 rounded-full bg-panel hover:bg-panel-hi flex items-center justify-center text-fg-soft">
           <X className="w-5 h-5" />
         </button>
       </div>
 
       <button onClick={onOrb} title={HINT[phase]}
         className={`w-40 h-40 rounded-full flex items-center justify-center transition-all duration-500
-          ${phase === 'listening' ? 'bg-[#10a37f] scale-110 animate-pulse'
-          : phase === 'speaking'  ? 'bg-[#10a37f]/80 scale-100'
-          : 'bg-[#2f2f2f] scale-90'}`}>
+          ${phase === 'listening' ? 'bg-brand scale-110 animate-pulse'
+          : phase === 'speaking'  ? 'bg-brand/80 scale-100'
+          : 'bg-panel scale-90'}`}>
         <Icon className={`w-14 h-14 text-white ${phase === 'thinking' ? 'animate-spin' : ''}`} />
       </button>
 
       <div className="w-full max-w-md text-center space-y-3 min-h-[6rem]">
-        <p className="text-sm text-[#8e8ea0]">{HINT[phase]}</p>
-        {transcript && <p className="text-[#ececec] text-base line-clamp-3">{transcript}</p>}
+        <p className="text-sm text-fg-muted">{HINT[phase]}</p>
+        {transcript && <p className="text-fg text-base line-clamp-3">{transcript}</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
       </div>
     </div>

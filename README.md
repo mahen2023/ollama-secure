@@ -112,12 +112,23 @@ Copy `.env.example` to `.env` and fill in the values:
 
 ### Ollama Proxy
 
-| Path     | Auth           | Maps to              |
-|----------|----------------|----------------------|
-| `/api/*` | JWT (Bearer)   | `OLLAMA_URL/api/*`   |
-| `/v1/*`  | `x-api-key`    | `OLLAMA_URL/api/*`   |
+| Path | Auth | Maps to |
+|------|------|---------|
+| `/api/chat`, `/generate`, `/embed`, `/embeddings`, `/show`, `/tags`, `/ps`, `/version` | JWT (Bearer) | `OLLAMA_URL/api/*` |
+| `/v1/chat`, `/generate`, `/embed`, `/show`, `/tags`, `/ps`, `/version` | API key | `OLLAMA_URL/api/*` (Ollama native) |
+| `/v1/chat/completions`, `/completions`, `/embeddings`, `/models` | API key | `OLLAMA_URL/v1/*` (OpenAI-compatible) |
 
-The `/v1/*` endpoint allows external integrations (scripts, Open WebUI, etc.) to reach Ollama through the secure proxy using a personal API key managed in **Settings → API Keys**.
+The `/v1/*` endpoint lets external integrations (scripts, OpenAI SDKs, LangChain, etc.) reach Ollama through the secure proxy using a personal API key managed in **Settings → API Keys**. Send the key as `x-api-key: ok_...` or `Authorization: Bearer ok_...`.
+
+For any OpenAI client, set `base_url` to `https://<your-server>/v1` and `api_key` to your key:
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="https://your-server/v1", api_key="ok_...")
+client.chat.completions.create(model="llama3.2", messages=[{"role": "user", "content": "Hello!"}])
+```
+
+Model management (`pull`, `delete`, `create`, `copy`, `push`) is not proxied; admins manage models in **Admin → Models**. Token limits and per-user model access apply to both APIs.
 
 ## Project Structure
 

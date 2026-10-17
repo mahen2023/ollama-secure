@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
   role:      { type: String, enum: ['user', 'assistant', 'system'], required: true },
   content:   { type: String, default: '' },
+  model:     { type: String },
   images:    [{ name: String, dataUri: String }],
   timestamp: { type: Date, default: Date.now },
 }, { _id: true });
@@ -23,7 +24,7 @@ const chatSchema = new mongoose.Schema({
 
 // Return chats list without messages (for sidebar)
 chatSchema.statics.listForUser = function (userId) {
-  return this.find({ userId }).select('-messages').sort('-createdAt').lean();
+  return this.find({ userId }).select('-messages').sort('-updatedAt').lean();
 };
 
 module.exports = mongoose.model('Chat', chatSchema);

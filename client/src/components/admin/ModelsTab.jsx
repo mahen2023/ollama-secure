@@ -120,9 +120,9 @@ export default function ModelsTab() {
     <div className="space-y-6">
 
       {/* Pull model */}
-      <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-5">
+      <div className="bg-ink-deep border border-panel rounded-xl p-5">
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-          <Download className="w-4 h-4 text-[#10a37f]" /> Pull model
+          <Download className="w-4 h-4 text-brand" /> Pull model
         </h3>
 
         <div className="flex gap-2">
@@ -132,14 +132,14 @@ export default function ModelsTab() {
             onKeyDown={(e) => e.key === 'Enter' && handlePull()}
             placeholder="e.g. llama3:8b, mistral:latest, phi3"
             disabled={pulling}
-            className="flex-1 bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-xl
-                       px-3 py-2.5 text-sm focus:outline-none focus:border-[#10a37f]
-                       placeholder-[#555] disabled:opacity-50 transition-colors"
+            className="flex-1 bg-panel border border-rule text-fg rounded-xl
+                       px-3 py-2.5 text-sm focus:outline-none focus:border-brand
+                       placeholder-fg-faint disabled:opacity-50 transition-colors"
           />
           <button
             onClick={handlePull}
             disabled={pulling || !pullName.trim()}
-            className="px-4 py-2.5 bg-[#10a37f] hover:bg-[#0d9270] disabled:opacity-50
+            className="px-4 py-2.5 bg-brand hover:bg-brand-dim disabled:opacity-50
                        text-white text-sm font-medium rounded-xl transition-colors shrink-0"
           >
             {pulling ? 'Pulling…' : 'Pull'}
@@ -151,10 +151,10 @@ export default function ModelsTab() {
           <div className="mt-4 space-y-3">
             {/* Status text */}
             <div className="flex items-center gap-2">
-              {pulling && <RefreshCw className="w-3.5 h-3.5 text-[#10a37f] animate-spin shrink-0" />}
-              {pullDone && <CheckCircle2 className="w-3.5 h-3.5 text-[#10a37f] shrink-0" />}
+              {pulling && <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin shrink-0" />}
+              {pullDone && <CheckCircle2 className="w-3.5 h-3.5 text-brand shrink-0" />}
               {pullError && <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />}
-              <span className={`text-xs ${pullError ? 'text-red-400' : pullDone ? 'text-[#10a37f]' : 'text-[#8e8ea0]'}`}>
+              <span className={`text-xs ${pullError ? 'text-red-400' : pullDone ? 'text-brand' : 'text-fg-muted'}`}>
                 {pullError || pullStatus || 'Connecting…'}
               </span>
             </div>
@@ -162,13 +162,13 @@ export default function ModelsTab() {
             {/* Download progress bar */}
             {hasDownloadProgress && (
               <div>
-                <div className="flex justify-between text-xs text-[#555] mb-1">
+                <div className="flex justify-between text-xs text-fg-faint mb-1">
                   <span>{fmtBytes(prog.completed)} / {fmtBytes(prog.total)}</span>
                   <span>{prog.pct}%</span>
                 </div>
-                <div className="w-full bg-[#2a2a2a] rounded-full h-1.5">
+                <div className="w-full bg-panel rounded-full h-1.5">
                   <div
-                    className="h-1.5 rounded-full bg-[#10a37f] transition-all"
+                    className="h-1.5 rounded-full bg-brand transition-all"
                     style={{ width: `${prog.pct}%` }}
                   />
                 </div>
@@ -179,17 +179,17 @@ export default function ModelsTab() {
       </div>
 
       {/* Installed models */}
-      <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#2a2a2a]">
+      <div className="bg-ink-deep border border-panel rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-panel">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <HardDrive className="w-4 h-4 text-[#10a37f]" />
+            <HardDrive className="w-4 h-4 text-brand" />
             Installed models
-            {!loading && <span className="text-[#555] font-normal">({models.length})</span>}
+            {!loading && <span className="text-fg-faint font-normal">({models.length})</span>}
           </h3>
           <button
             onClick={load}
             disabled={loading}
-            className="p-1.5 text-[#555] hover:text-white hover:bg-[#2a2a2a] rounded-lg transition-colors"
+            className="p-1.5 text-fg-faint hover:text-white hover:bg-panel rounded-lg transition-colors"
             title="Refresh"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -201,27 +201,27 @@ export default function ModelsTab() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-[#555]">
+          <div className="flex items-center justify-center gap-2 py-12 text-fg-faint">
             <RefreshCw className="w-4 h-4 animate-spin" /> Loading…
           </div>
         ) : models.length === 0 ? (
-          <p className="text-[#555] text-sm text-center py-12">No models installed. Pull one above.</p>
+          <p className="text-fg-faint text-sm text-center py-12">No models installed. Pull one above.</p>
         ) : (
-          <div className="divide-y divide-[#1a1a1a]">
+          <div className="divide-y divide-ink-deep">
             {models.map((m) => (
-              <div key={m.name} className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#252525] transition-colors group">
+              <div key={m.name} className="flex items-center gap-4 px-5 py-3.5 hover:bg-ink transition-colors group">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white font-medium font-mono truncate">{m.name}</p>
-                  <p className="text-xs text-[#555] mt-0.5">
+                  <p className="text-xs text-fg-faint mt-0.5">
                     {fmtBytes(m.size)}
                     {m.modified_at && (
-                      <span className="ml-2 text-[#444]">· modified {timeAgo(m.modified_at)}</span>
+                      <span className="ml-2 text-fg-faint">· modified {timeAgo(m.modified_at)}</span>
                     )}
                     {m.details?.parameter_size && (
-                      <span className="ml-2 text-[#444]">· {m.details.parameter_size}</span>
+                      <span className="ml-2 text-fg-faint">· {m.details.parameter_size}</span>
                     )}
                     {m.details?.quantization_level && (
-                      <span className="ml-2 text-[#444]">· {m.details.quantization_level}</span>
+                      <span className="ml-2 text-fg-faint">· {m.details.quantization_level}</span>
                     )}
                   </p>
                 </div>
@@ -229,7 +229,7 @@ export default function ModelsTab() {
                   onClick={() => handleDelete(m.name)}
                   disabled={deleting === m.name}
                   title="Delete model"
-                  className="opacity-0 group-hover:opacity-100 p-1.5 text-[#555] hover:text-red-400
+                  className="opacity-0 group-hover:opacity-100 p-1.5 text-fg-faint hover:text-red-400
                              hover:bg-red-400/10 rounded-lg transition-all disabled:opacity-50 shrink-0"
                 >
                   {deleting === m.name

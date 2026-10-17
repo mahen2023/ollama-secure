@@ -70,11 +70,22 @@ router.patch('/users/:id', async (req, res) => {
       if (role === 'user' || status === 'suspended')
         return res.status(400).json({ error: 'Cannot demote or suspend your own account' });
     }
-    const { status, role, limits } = req.body;
+    const { status, role, limits, allowedModels } = req.body;
+    if (status !== undefined && !['pending', 'active', 'suspended'].includes(status))
+      return res.status(400).json({ error: 'Status must be pending, active or suspended' });
+    if (role !== undefined && !['admin', 'user'].includes(role))
+      return res.status(400).json({ error: 'Role must be admin or user' });
+    if (allowedModels !== undefined && !(Array.isArray(allowedModels) && allowedModels.every((m) => typeof m === 'string')))
+      return res.status(400).json({ error: 'allowedModels must be a list of model names' });
+
     const update = {};
     if (status !== undefined) update.status = status;
     if (role   !== undefined) update.role   = role;
-    if (limits !== undefined) update.limits = limits;
+    if (limits !== undefined) update.limits = {
+      dailyTokens: Math.max(0, Number(limits.dailyTokens) || 0),
+      totalTokens: Math.max(0, Number(limits.totalTokens) || 0),
+    };
+    if (allowedModels !== undefined) update.allowedModels = [...new Set(allowedModels.map((m) => m.trim()).filter(Boolean))];
 
     const user = await User.findByIdAndUpdate(req.params.id, update, { new: true })
       .select('-password').lean();
@@ -84,6 +95,8 @@ router.patch('/users/:id', async (req, res) => {
       logAction(req, `user.${status}`, { targetId: req.params.id, username: user.username });
     if (role !== undefined)
       logAction(req, 'user.role_change', { targetId: req.params.id, username: user.username, role });
+    if (allowedModels !== undefined)
+      logAction(req, 'user.models', { targetId: req.params.id, username: user.username, allowedModels: update.allowedModels });
 
     res.json(user);
   } catch (err) {

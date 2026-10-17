@@ -10,13 +10,23 @@
 *::-webkit-scrollbar { width: 5px; height: 5px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
-*::-webkit-scrollbar-thumb:hover { background: #555; }
+*::-webkit-scrollbar-thumb:hover { background: #888888; }
 
 body {
   background: #212121;
   color: #ececec;
-  font-family: ui-sans-serif, system-ui, sans-serif;
 }
+
+/* One focus ring for every control; components that draw their own ring opt out with outline-none */
+:focus-visible { outline: 2px solid #10a37f; outline-offset: 2px; }
+
+/* Model status dot: glows while the model is generating on this server */
+@keyframes brand-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(16 163 127 / 0.55); }
+  50%      { box-shadow: 0 0 0 5px rgb(16 163 127 / 0); }
+}
+.brand-on { animation: brand-glow 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .brand-on { animation: none; } }
 
 /* Typing dots animation */
 @keyframes typing-dot {
@@ -36,4 +46,17 @@ body {
     padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     padding-left:   var(--safe-area-inset-left,   env(safe-area-inset-left, 0px));
   }
+}
+
+/* Welcome deck: the shuffle ring drains over 15s, then advances the suggestions.
+   Hovering or focusing the welcome area pauses it; reduced motion disables auto-rotate. */
+@keyframes welcome-timer { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
+@keyframes welcome-deck  { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.welcome-timer { animation: welcome-timer 15s linear forwards; opacity: 0.6; }
+.welcome-deck  { animation: welcome-deck 0.35s ease-out; }
+.welcome-area:hover .welcome-timer,
+.welcome-area:has(:focus-visible) .welcome-timer { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .welcome-timer { animation: none; opacity: 0; }
+  .welcome-deck  { animation: none; }
 }

@@ -10,8 +10,8 @@ function Field({ label, icon: Icon, type, value, onChange, placeholder, error })
   const isPassword = type === 'password';
   return (
     <div>
-      <label className="block text-sm font-medium text-[#adadad] mb-1.5">
-        <Icon className="w-3.5 h-3.5 inline mr-1.5 text-[#10a37f]" />
+      <label className="block text-sm font-medium text-fg-soft mb-1.5">
+        <Icon className="w-3.5 h-3.5 inline mr-1.5 text-brand" />
         {label}
       </label>
       <div className="relative">
@@ -21,16 +21,16 @@ function Field({ label, icon: Icon, type, value, onChange, placeholder, error })
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete={isPassword ? 'current-password' : 'username'}
-          className={`w-full bg-[#212121] border text-white rounded-xl px-4 py-3 text-sm
-                      focus:outline-none placeholder-[#555] transition-colors
-                      ${error ? 'border-red-500/50 focus:border-red-400' : 'border-[#3a3a3a] focus:border-[#10a37f]'}
+          className={`w-full bg-ink border text-white rounded-xl px-4 py-3 text-sm
+                      focus:outline-none placeholder-fg-faint transition-colors
+                      ${error ? 'border-red-500/50 focus:border-red-400' : 'border-rule focus:border-brand'}
                       ${isPassword ? 'pr-11' : ''}`}
         />
         {isPassword && (
           <button
             type="button"
             onClick={() => setShow((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#8e8ea0]"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-muted"
           >
             {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
@@ -115,7 +115,7 @@ export default function LoginPage() {
   const isLogin = tab === 'login';
 
   return (
-    <div className="min-h-[100dvh] bg-[#212121] flex items-center justify-center p-4 safe-area">
+    <div className="min-h-[100dvh] bg-ink flex items-center justify-center p-4 safe-area">
       <div className="w-full max-w-sm">
 
         {/* Logo */}
@@ -124,13 +124,13 @@ export default function LoginPage() {
           <h1 className="text-2xl font-semibold text-white">
             {isLogin ? 'Welcome back' : 'Create account'}
           </h1>
-          <p className="text-[#8e8ea0] text-sm mt-1">
+          <p className="text-fg-muted text-sm mt-1">
             {isLogin ? 'Sign in to your account' : 'Join Ollama Chat'}
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl shadow-xl">
+        <div className="bg-panel border border-rule rounded-2xl shadow-xl">
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <Field
               label="Username" icon={User} type="text"
@@ -155,7 +155,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !username.trim() || !password || banner?.type === 'pending'}
-              className="w-full bg-[#10a37f] hover:bg-[#0d9270] disabled:opacity-50 disabled:cursor-not-allowed
+              className="w-full bg-brand hover:bg-brand-dim disabled:opacity-50 disabled:cursor-not-allowed
                          text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm mt-2"
             >
               {loading ? (
@@ -166,12 +166,12 @@ export default function LoginPage() {
             </button>
 
             {/* Switch link */}
-            <p className="text-center text-sm text-[#8e8ea0] pt-1">
+            <p className="text-center text-sm text-fg-muted pt-1">
               {isLogin ? "Don't have an account? " : 'Already have an account? '}
               <button
                 type="button"
                 onClick={() => switchTab(isLogin ? 'register' : 'login')}
-                className="text-[#10a37f] hover:text-[#0d9270] font-medium transition-colors"
+                className="text-brand hover:text-brand-dim font-medium transition-colors"
               >
                 {isLogin ? 'Sign up' : 'Sign in'}
               </button>

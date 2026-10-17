@@ -33,12 +33,12 @@ export default function ApiKeysTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-[#555]">All active API keys across users</p>
+        <p className="text-xs text-fg-faint">All active API keys across users</p>
         <button
           onClick={load}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#8e8ea0] hover:text-white
-                     bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-[#2a2a2a] rounded-lg
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-fg-muted hover:text-white
+                     bg-ink-deep hover:bg-panel border border-panel rounded-lg
                      transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -52,59 +52,59 @@ export default function ApiKeysTab() {
       )}
 
       {loading && (
-        <div className="flex items-center justify-center gap-2 py-16 text-[#555]">
+        <div className="flex items-center justify-center gap-2 py-16 text-fg-faint">
           <RefreshCw className="w-4 h-4 animate-spin" /> Loading keys…
         </div>
       )}
 
       {!loading && keys.length === 0 && (
-        <div className="text-center py-16 border border-dashed border-[#2a2a2a] rounded-xl">
-          <Key className="w-10 h-10 text-[#2a2a2a] mx-auto mb-3" />
-          <p className="text-[#555] text-sm">No active API keys</p>
+        <div className="text-center py-16 border border-dashed border-panel rounded-xl">
+          <Key className="w-10 h-10 text-panel mx-auto mb-3" />
+          <p className="text-fg-faint text-sm">No active API keys</p>
         </div>
       )}
 
       {!loading && keys.length > 0 && <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#2a2a2a]">
+            <tr className="border-b border-panel">
               {['Key', 'Owner', 'Requests', 'Tokens', 'Last Used', 'Created', ''].map((h) => (
-                <th key={h} className="text-left text-xs text-[#555] font-medium pb-3 pr-4 whitespace-nowrap">{h}</th>
+                <th key={h} className="text-left text-xs text-fg-faint font-medium pb-3 pr-4 whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1e1e1e]">
+          <tbody className="divide-y divide-ink-deep">
             {keys.map((k) => (
               <tr key={k._id} className="group">
                 <td className="py-3 pr-4">
                   <div className="flex items-center gap-2">
-                    <Key className="w-3.5 h-3.5 text-[#10a37f] shrink-0" />
+                    <Key className="w-3.5 h-3.5 text-brand shrink-0" />
                     <div>
                       <p className="text-white font-medium text-sm">{k.name}</p>
-                      <p className="text-[#555] text-xs font-mono">
+                      <p className="text-fg-faint text-xs font-mono">
                         {k.keyPrefix}<span className="opacity-40">{'•'.repeat(16)}</span>
                       </p>
                     </div>
                   </div>
                 </td>
-                <td className="py-3 pr-4 text-[#8e8ea0] text-sm">{k.username}</td>
-                <td className="py-3 pr-4 text-[#8e8ea0] text-xs tabular-nums">
+                <td className="py-3 pr-4 text-fg-muted text-sm">{k.username}</td>
+                <td className="py-3 pr-4 text-fg-muted text-xs tabular-nums">
                   {(k.usage?.requests ?? 0).toLocaleString()}
                 </td>
-                <td className="py-3 pr-4 text-[#8e8ea0] text-xs tabular-nums">
+                <td className="py-3 pr-4 text-fg-muted text-xs tabular-nums">
                   {(k.usage?.tokens ?? 0).toLocaleString()}
                 </td>
-                <td className="py-3 pr-4 text-[#555] text-xs whitespace-nowrap">
+                <td className="py-3 pr-4 text-fg-faint text-xs whitespace-nowrap">
                   {k.lastUsed ? new Date(k.lastUsed).toLocaleDateString() : 'Never'}
                 </td>
-                <td className="py-3 pr-4 text-[#555] text-xs whitespace-nowrap">
+                <td className="py-3 pr-4 text-fg-faint text-xs whitespace-nowrap">
                   {new Date(k.createdAt).toLocaleDateString()}
                 </td>
                 <td className="py-3">
                   <button
                     onClick={() => revoke(k._id, k.name)}
                     title="Revoke key"
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-[#555] hover:text-red-400
+                    className="opacity-0 group-hover:opacity-100 p-1.5 text-fg-faint hover:text-red-400
                                hover:bg-red-400/10 rounded-lg transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -115,7 +115,7 @@ export default function ApiKeysTab() {
           </tbody>
         </table>
       </div>}
-      <p className="text-xs text-[#555]">
+      <p className="text-xs text-fg-faint">
         Admins can create API keys in Settings → API Keys. Keys grant access to <code className="font-mono">/v1/*</code>.
       </p>
     </div>

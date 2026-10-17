@@ -1,13 +1,13 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Code2, Globe, Zap, Lightbulb, Download, Copy, Check, Terminal, Menu } from 'lucide-react';
-import AppLogo from '../AppLogo';
+import { Download, Copy, Check, Terminal, Menu, X } from 'lucide-react';
 import { useStore } from '../../store';
-import { fetchModels, streamChat, generateTitle, VOICE_KEEP_ALIVE } from '../../api/ollama';
+import { fetchModels, streamChat, generateTitle, tokensPerSec, contextUsed, VOICE_KEEP_ALIVE } from '../../api/ollama';
 import { createChat, getChat, patchChat, appendMessages, truncateMessages } from '../../api/chats';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import ModelSelector from '../ui/ModelSelector';
 import VoiceMode from './VoiceMode';
+import Welcome from './Welcome';
 
 function formatAsMarkdown(chat, title) {
   const lines = [`# ${title ?? chat.title}`, ''];
@@ -36,33 +36,75 @@ function toApiMsg(m) {
   return msg;
 }
 
+// A history write failed: what is on screen may no longer match what the server saved
+const saveFailed = (err) => useStore.getState().setSaveError(err.message || 'Could not save to the server');
+
 // Header buttons: 44px touch targets on phones, compact on desktop
 const HEADER_BTN  = 'p-2.5 md:p-1.5 rounded-lg transition-colors shrink-0';
 const HEADER_ICON = 'w-5 h-5 md:w-3.5 md:h-3.5';
 
+// Model status: glows while the model generates; afterwards shows the last reply's speed
+function ModelLamp() {
+  const isGenerating = useStore((s) => s.isGenerating);
+  const tps = useStore((s) => s.currentChat?.messages?.at(-1)?.tps);
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-fg-faint shrink-0" title="Runs on your server. Nothing is sent to a third party.">
+      <span className={`w-2 h-2 rounded-full transition-colors ${isGenerating ? 'bg-brand brand-on' : 'bg-rule-hi'}`} />
+      <span className="hidden sm:inline" aria-live="polite">
+        {isGenerating ? 'Generating on your server' : tps ? `${tps} tok/s` : ''}
+      </span>
+    </span>
+  );
+}
+
+const kTokens = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n));
+
+// How full the model's context window is after the latest reply. Past the limit,
+// Ollama silently drops the oldest messages, so warn before that happens.
+function ContextMeter() {
+  const used  = useStore((s) => s.currentChat?.messages?.findLast((m) => m.ctx)?.ctx);
+  const limit = useStore((s) => s.settings.contextLength);
+  if (!used || !(limit > 0)) return null;
+
+  const share = used / limit;
+  const tone  = share >= 1 ? 'text-red-400' : share >= 0.8 ? 'text-amber-400' : 'text-fg-faint';
+  const bar   = share >= 1 ? 'bg-red-400'   : share >= 0.8 ? 'bg-amber-400'   : 'bg-fg-faint';
+  const title = share >= 1
+    ? 'The model can no longer see the start of this chat. Start a new chat, or raise the context length in Settings.'
+    : share >= 0.8
+      ? 'Almost full: soon the model will stop seeing the oldest messages. Start a new chat, or raise the context length in Settings.'
+      : 'How much of the model\'s context window this chat uses.';
+
+  return (
+    <span className={`flex items-center gap-1.5 text-xs shrink-0 tabular-nums ${tone}`} title={title}>
+      <span className="w-10 h-1 rounded-full bg-rule overflow-hidden" aria-hidden="true">
+        <span className={`block h-full ${bar}`} style={{ width: `${Math.min(share, 1) * 100}%` }} />
+      </span>
+      <span>
+        {kTokens(used)} / {kTokens(limit)}<span className="hidden lg:inline"> context</span>
+      </span>
+    </span>
+  );
+}
+
 // Top bar shared by the welcome screen and chats: [menu] [model] … [children]
 function TopBar({ children }) {
   return (
-    <div className="flex items-center gap-1 md:gap-3 px-2 md:px-5 py-1.5 md:py-2 border-b border-[#2a2a2a] bg-[#212121] shrink-0">
+    <div className="flex items-center gap-1 md:gap-3 px-2 md:px-5 py-1.5 md:py-2 border-b border-panel bg-ink shrink-0">
       <button
-        className={`md:hidden text-[#8e8ea0] hover:text-white hover:bg-[#2a2a2a] ${HEADER_BTN}`}
+        className={`md:hidden text-fg-muted hover:text-white hover:bg-panel ${HEADER_BTN}`}
         onClick={() => useStore.getState().setSidebarOpen(true)}
         title="Open sidebar"
       >
         <Menu className="w-5 h-5" />
       </button>
       <div className="min-w-0 shrink"><ModelSelector /></div>
+      <ModelLamp />
+      <ContextMeter />
       {children}
     </div>
   );
 }
-
-const SUGGESTIONS = [
-  { icon: Code2,     prompt: 'Write a Python function that reads a CSV and returns summary statistics.' },
-  { icon: Globe,     prompt: 'Translate "Hello, how are you?" into French, Spanish, and Japanese.' },
-  { icon: Zap,       prompt: 'Summarize the key differences between REST and GraphQL APIs.' },
-  { icon: Lightbulb, prompt: 'Explain how transformers work in machine learning, simply.' },
-];
 
 export default function ChatPage() {
   const {
@@ -72,6 +114,7 @@ export default function ChatPage() {
     appendMessage, updateLastMessage, setMessages,
     settings, isGenerating, setIsGenerating,
     voiceOpen, setVoiceOpen,
+    saveError, setSaveError,
   } = useStore();
 
   const abortRef = useRef(null);
@@ -110,6 +153,7 @@ export default function ChatPage() {
     const keepAlive   = voiceOpen ? VOICE_KEEP_ALIVE : undefined;
     const effectiveSystemPrompt = [chatSystemPrompt || settings.systemPrompt, voicePrompt].filter(Boolean).join('\n\n');
     useStore.getState().setIsGenerating(true);
+    useStore.getState().patchLastMessage({ model: selectedModel, error: undefined, tps: undefined, ctx: undefined });
     accumRef.current = prefill ?? '';
     abortRef.current = new AbortController();
 
@@ -120,9 +164,9 @@ export default function ChatPage() {
     const finish = async (response) => {
       if (prefill !== undefined) {
         // Replace the DB partial with the now-complete response
-        truncateMessages(token, chatId, history.length).catch(() => {});
+        truncateMessages(token, chatId, history.length).catch(saveFailed);
       }
-      appendMessages(token, chatId, [{ role: 'assistant', content: response }]).catch(() => {});
+      appendMessages(token, chatId, [{ role: 'assistant', content: response, model: selectedModel }]).catch(saveFailed);
       useStore.getState().setIsGenerating(false);
       onDone?.();
     };
@@ -142,7 +186,10 @@ export default function ChatPage() {
             accumRef.current += chunk;
             useStore.getState().updateLastMessage(accumRef.current);
           },
-          async onDone() { await finish(accumRef.current); },
+          async onDone(data) {
+            useStore.getState().patchLastMessage({ tps: tokensPerSec(data), ctx: contextUsed(data) });
+            await finish(accumRef.current);
+          },
         });
       } else {
         const sysMsg = effectiveSystemPrompt
@@ -169,7 +216,7 @@ export default function ChatPage() {
         }
         const data = await res.json();
         const response = data.message?.content ?? '';
-        useStore.getState().updateLastMessage(response);
+        useStore.getState().patchLastMessage({ content: response, tps: tokensPerSec(data), ctx: contextUsed(data) });
         await finish(response);
       }
       return 'done';
@@ -179,14 +226,14 @@ export default function ChatPage() {
         if (partial) {
           if (prefill !== undefined) {
             // Replace old DB partial with the further-extended partial
-            truncateMessages(token, chatId, history.length).catch(() => {});
+            truncateMessages(token, chatId, history.length).catch(saveFailed);
           }
-          appendMessages(token, chatId, [{ role: 'assistant', content: partial }]).catch(() => {});
+          appendMessages(token, chatId, [{ role: 'assistant', content: partial, model: selectedModel }]).catch(saveFailed);
         }
         useStore.getState().setIsGenerating(false);
         return 'aborted';
       }
-      useStore.getState().updateLastMessage(`⚠️ Error: ${err.message}`);
+      useStore.getState().patchLastMessage({ error: err.message || 'The model did not respond.' });
       useStore.getState().setIsGenerating(false);
       return 'error';
     }
@@ -219,6 +266,9 @@ export default function ChatPage() {
       chatId = newChat._id;
     }
 
+    // Bump activity so the sidebar moves this chat to the top of "Today"
+    useStore.getState().updateChatMeta(chatId, { updatedAt: new Date().toISOString() });
+
     const history = (useStore.getState().currentChat?.messages ?? []).map(toApiMsg);
     const isFirstMessage = history.length === 0;
 
@@ -235,7 +285,7 @@ export default function ChatPage() {
       role: 'user',
       content: apiContent,
       ...(imageFiles.length > 0 && { images: imageFiles.map((f) => ({ name: f.name, dataUri: f.dataUri })) }),
-    }]).catch(() => {});
+    }]).catch(saveFailed);
 
     const result = await runGeneration({
       chatId,
@@ -288,12 +338,12 @@ export default function ChatPage() {
     ]);
 
     // Persist: truncate then re-append the edited user message
-    truncateMessages(token, currentChatId, messageIndex).catch(() => {});
+    truncateMessages(token, currentChatId, messageIndex).catch(saveFailed);
     appendMessages(token, currentChatId, [{
       role: 'user',
       content: newContent,
       ...(images.length > 0 && { images }),
-    }]).catch(() => {});
+    }]).catch(saveFailed);
 
     const result = await runGeneration({
       chatId: currentChatId,
@@ -329,7 +379,7 @@ export default function ChatPage() {
     ]);
 
     // Persist: drop the old assistant message (and anything after it)
-    truncateMessages(token, currentChatId, messageIndex).catch(() => {});
+    truncateMessages(token, currentChatId, messageIndex).catch(saveFailed);
 
     const result = await runGeneration({
       chatId: currentChatId,
@@ -419,35 +469,17 @@ export default function ChatPage() {
     body = (
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
-        <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-8 overflow-y-auto">
-          <AppLogo className="w-16 h-16 rounded-2xl mb-5 shadow-lg" />
-          <h1 className="text-2xl font-semibold text-white mb-1">How can I help you?</h1>
-          <p className="text-[#8e8ea0] text-sm mb-8">
-            {selectedModel ? 'Type, dictate, or tap the voice button' : 'Select a model at the top to start'}
-          </p>
-          <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-            {SUGGESTIONS.map(({ icon: Icon, prompt }, i) => (
-              <button
-                key={i}
-                onClick={() => selectedModel && handleSend(prompt)}
-                disabled={!selectedModel}
-                className="bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] hover:border-[#4a4a4a]
-                           rounded-xl p-4 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed group"
-              >
-                <Icon className="w-5 h-5 text-[#10a37f] mb-2 group-hover:scale-110 transition-transform" />
-                <p className="text-[#adadad] text-xs leading-5">{prompt.slice(0, 55)}…</p>
-              </button>
-            ))}
-          </div>
+        <div className="welcome-area flex-1 flex flex-col items-center justify-center px-4 py-6 md:p-8 overflow-y-auto">
+          <Welcome model={selectedModel} onPick={(p) => selectedModel && handleSend(p)} />
         </div>
-        <ChatInput onSend={handleSend} onStop={handleStop} isGenerating={isGenerating} onVoice={() => setVoiceOpen(true)} />
+        <ChatInput onSend={handleSend} onStop={handleStop} isGenerating={isGenerating} onVoice={() => setVoiceOpen(true)} showHints />
       </div>
     );
   } else if (!currentChat) {
     body = (
       <div className="flex-1 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-[#8e8ea0]">
-          <div className="w-4 h-4 border-2 border-[#10a37f] border-t-transparent rounded-full animate-spin" />
+        <div className="flex items-center gap-2 text-fg-muted">
+          <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
           Loading chat…
         </div>
       </div>
@@ -457,9 +489,9 @@ export default function ChatPage() {
     body = (
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar>
-          <span className="hidden md:block text-sm text-[#adadad] truncate flex-1">{meta?.title ?? currentChat.title}</span>
+          <span className="hidden md:block text-sm text-fg-soft truncate flex-1">{meta?.title ?? currentChat.title}</span>
           <div className="flex-1 md:hidden" />
-          <span className="hidden md:inline text-xs text-[#555] shrink-0">
+          <span className="hidden md:inline text-xs text-fg-faint shrink-0">
             {currentChat.messages.filter((m) => m.role === 'user').length} messages
           </span>
           <div className="flex items-center gap-0.5 shrink-0">
@@ -468,25 +500,25 @@ export default function ChatPage() {
               title={currentChat.systemPrompt ? 'Edit chat system prompt' : 'Add chat system prompt'}
               className={`relative ${HEADER_BTN}
                 ${sysPromptOpen
-                  ? 'text-[#10a37f] bg-[#2a2a2a]'
-                  : 'text-[#8e8ea0] md:text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a]'}`}
+                  ? 'text-brand bg-panel'
+                  : 'text-fg-muted md:text-fg-faint hover:text-fg-soft hover:bg-panel'}`}
             >
               <Terminal className={HEADER_ICON} />
               {currentChat.systemPrompt && (
-                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#10a37f]" />
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-brand" />
               )}
             </button>
             <button
               onClick={handleCopyChat}
               title={copied ? 'Copied!' : 'Copy as Markdown'}
-              className={`text-[#8e8ea0] md:text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] ${HEADER_BTN}`}
+              className={`text-fg-muted md:text-fg-faint hover:text-fg-soft hover:bg-panel ${HEADER_BTN}`}
             >
-              {copied ? <Check className={`${HEADER_ICON} text-[#10a37f]`} /> : <Copy className={HEADER_ICON} />}
+              {copied ? <Check className={`${HEADER_ICON} text-brand`} /> : <Copy className={HEADER_ICON} />}
             </button>
             <button
               onClick={handleDownload}
               title="Download as Markdown"
-              className={`text-[#8e8ea0] md:text-[#555] hover:text-[#adadad] hover:bg-[#2a2a2a] ${HEADER_BTN}`}
+              className={`text-fg-muted md:text-fg-faint hover:text-fg-soft hover:bg-panel ${HEADER_BTN}`}
             >
               <Download className={HEADER_ICON} />
             </button>
@@ -495,12 +527,12 @@ export default function ChatPage() {
 
         {/* Per-chat system prompt editor */}
         {sysPromptOpen && (
-          <div className="border-b border-[#2a2a2a] bg-[#1a1a1a] px-5 py-3 shrink-0">
+          <div className="border-b border-panel bg-ink-deep px-5 py-3 shrink-0">
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-[#8e8ea0]">System prompt — this chat only</span>
+                <span className="text-xs font-medium text-fg-muted">System prompt — this chat only</span>
                 {!sysPromptDraft && settings.systemPrompt && (
-                  <span className="text-[10px] text-[#444] truncate max-w-[260px]">
+                  <span className="text-[10px] text-fg-faint truncate max-w-[260px]">
                     global: "{settings.systemPrompt.slice(0, 50)}{settings.systemPrompt.length > 50 ? '…' : ''}"
                   </span>
                 )}
@@ -519,12 +551,12 @@ export default function ChatPage() {
                     : 'Add a system prompt for this chat…'
                 }
                 rows={3}
-                className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl px-3 py-2.5 text-sm
-                           text-[#ececec] placeholder-[#444] focus:outline-none focus:border-[#10a37f]
+                className="w-full bg-panel border border-rule rounded-xl px-3 py-2.5 text-sm
+                           text-fg placeholder-fg-faint focus:outline-none focus:border-brand
                            resize-none leading-6 transition-colors"
               />
               <div className="flex items-center justify-between mt-2">
-                <p className="text-[10px] text-[#444]">
+                <p className="text-[10px] text-fg-faint">
                   {sysPromptDraft
                     ? 'Overrides the global system prompt for this chat'
                     : 'Empty → falls back to the global system prompt'}
@@ -532,14 +564,14 @@ export default function ChatPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSysPromptOpen(false)}
-                    className="px-3 py-1.5 text-xs text-[#8e8ea0] hover:text-white rounded-lg
-                               hover:bg-[#2a2a2a] transition-colors"
+                    className="px-3 py-1.5 text-xs text-fg-muted hover:text-white rounded-lg
+                               hover:bg-panel transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveSysPrompt}
-                    className="px-3 py-1.5 text-xs bg-[#10a37f] hover:bg-[#0d9270] text-white
+                    className="px-3 py-1.5 text-xs bg-brand hover:bg-brand-dim text-white
                                rounded-lg transition-colors"
                   >
                     Save
@@ -557,6 +589,24 @@ export default function ChatPage() {
           onRegenerate={handleRegenerate}
           onContinue={handleContinue}
         />
+        {saveError && (
+          <div role="alert" className="max-w-3xl w-full mx-auto px-2 md:px-4">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-red-400/30 bg-red-400/10 text-xs text-red-300">
+              <span className="flex-1">
+                The last change didn't save ({saveError}). Reload the chat to see what the server has.
+              </span>
+              <button
+                onClick={() => { setSaveError(null); useStore.setState({ currentChat: null }); getChat(token, currentChatId).then(setCurrentChat).catch(saveFailed); }}
+                className="px-2 py-1 rounded-lg bg-panel border border-rule text-fg hover:bg-panel-hi shrink-0"
+              >
+                Reload chat
+              </button>
+              <button onClick={() => setSaveError(null)} title="Dismiss" className="p-1 text-red-300/70 hover:text-red-300 shrink-0">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
         <ChatInput onSend={handleSend} onStop={handleStop} isGenerating={isGenerating} onVoice={() => setVoiceOpen(true)} />
       </div>
     );

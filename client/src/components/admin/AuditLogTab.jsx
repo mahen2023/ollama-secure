@@ -11,12 +11,12 @@ const ACTION_STYLE = {
   'user.delete':      'bg-red-500/10 text-red-400',
   'user.role_change': 'bg-purple-500/10 text-purple-400',
   'user.update':      'bg-blue-500/10 text-blue-400',
-  'model.pull':       'bg-[#10a37f]/10 text-[#10a37f]',
+  'model.pull':       'bg-brand/10 text-brand',
   'model.delete':     'bg-red-500/10 text-red-400',
 };
 
 function actionStyle(action) {
-  return ACTION_STYLE[action] ?? 'bg-[#2a2a2a] text-[#8e8ea0]';
+  return ACTION_STYLE[action] ?? 'bg-panel text-fg-muted';
 }
 
 function describeAction(log) {
@@ -92,15 +92,15 @@ export default function AuditLogTab() {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter by action, user, or detail…"
-          className="flex-1 bg-[#1e1e1e] border border-[#2a2a2a] text-[#ececec] rounded-xl
-                     px-3 py-2.5 text-sm focus:outline-none focus:border-[#10a37f]
-                     placeholder-[#555] transition-colors"
+          className="flex-1 bg-ink-deep border border-panel text-fg rounded-xl
+                     px-3 py-2.5 text-sm focus:outline-none focus:border-brand
+                     placeholder-fg-faint transition-colors"
         />
         <button
           onClick={() => load(0)}
           disabled={loading}
-          className="p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] text-[#555] hover:text-white
-                     hover:border-[#3a3a3a] rounded-xl transition-colors"
+          className="p-2.5 bg-ink-deep border border-panel text-fg-faint hover:text-white
+                     hover:border-rule rounded-xl transition-colors"
           title="Refresh"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -108,7 +108,7 @@ export default function AuditLogTab() {
       </div>
 
       {/* Summary line */}
-      <p className="text-xs text-[#555]">
+      <p className="text-xs text-fg-faint">
         {total === 0 ? 'No entries recorded yet.' : `${total.toLocaleString()} total entr${total === 1 ? 'y' : 'ies'}`}
         {filter && filtered.length !== logs.length && ` · ${filtered.length} matching filter`}
       </p>
@@ -118,33 +118,33 @@ export default function AuditLogTab() {
       )}
 
       {/* Log table */}
-      <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl overflow-hidden">
+      <div className="bg-ink-deep border border-panel rounded-xl overflow-hidden">
         {loading && logs.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-[#555] text-sm">
+          <div className="flex items-center justify-center gap-2 py-12 text-fg-faint text-sm">
             <RefreshCw className="w-4 h-4 animate-spin" /> Loading…
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Shield className="w-10 h-10 text-[#2a2a2a]" />
-            <p className="text-[#555] text-sm">
+            <Shield className="w-10 h-10 text-panel" />
+            <p className="text-fg-faint text-sm">
               {filter ? 'No entries match the filter.' : 'No admin actions recorded yet.'}
             </p>
           </div>
         ) : (
           <>
-            <div className="divide-y divide-[#1a1a1a]">
+            <div className="divide-y divide-ink-deep">
               {filtered.map((log) => (
                 <div
                   key={log._id}
-                  className="flex items-start gap-4 px-5 py-3 hover:bg-[#252525] transition-colors"
+                  className="flex items-start gap-4 px-5 py-3 hover:bg-ink transition-colors"
                 >
                   {/* Timestamp */}
-                  <span className="text-xs text-[#444] shrink-0 pt-0.5 w-36 tabular-nums">
+                  <span className="text-xs text-fg-faint shrink-0 pt-0.5 w-36 tabular-nums">
                     {fmtDate(log.createdAt)}
                   </span>
 
                   {/* Actor */}
-                  <span className="text-xs font-mono text-[#8e8ea0] shrink-0 w-24 truncate pt-0.5">
+                  <span className="text-xs font-mono text-fg-muted shrink-0 w-24 truncate pt-0.5">
                     {log.username ?? '—'}
                   </span>
 
@@ -154,13 +154,13 @@ export default function AuditLogTab() {
                   </span>
 
                   {/* Description */}
-                  <span className="text-xs text-[#ececec] flex-1 pt-0.5 min-w-0 truncate">
+                  <span className="text-xs text-fg flex-1 pt-0.5 min-w-0 truncate">
                     {describeAction(log)}
                   </span>
 
                   {/* IP */}
                   {log.ip && (
-                    <span className="text-[11px] text-[#444] shrink-0 font-mono pt-0.5">{log.ip}</span>
+                    <span className="text-[11px] text-fg-faint shrink-0 font-mono pt-0.5">{log.ip}</span>
                   )}
                 </div>
               ))}
@@ -168,12 +168,12 @@ export default function AuditLogTab() {
 
             {/* Load more */}
             {skip < total && (
-              <div className="px-5 py-3 border-t border-[#1a1a1a] flex items-center justify-between">
-                <span className="text-xs text-[#555]">Showing {logs.length} of {total}</span>
+              <div className="px-5 py-3 border-t border-ink-deep flex items-center justify-between">
+                <span className="text-xs text-fg-faint">Showing {logs.length} of {total}</span>
                 <button
                   onClick={() => load(skip)}
                   disabled={loading}
-                  className="text-xs text-[#10a37f] hover:underline disabled:opacity-50 flex items-center gap-1"
+                  className="text-xs text-brand hover:underline disabled:opacity-50 flex items-center gap-1"
                 >
                   {loading && <RefreshCw className="w-3 h-3 animate-spin" />}
                   Load more

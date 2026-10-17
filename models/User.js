@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
     dailyTokens: { type: Number, default: 0 }, // 0 = unlimited
     totalTokens: { type: Number, default: 0 },
   },
+  allowedModels: [{ type: String }],  // empty = all models; admins are never restricted
   passwordChangedAt: { type: Date },  // set on every password change (not on initial create)
   settings: {
     systemPrompt:  { type: String,  default: '' },
@@ -45,6 +46,7 @@ userSchema.methods.toSafeObject = function () {
     role:      this.role,
     status:    this.status,
     limits:    this.limits,
+    allowedModels: this.allowedModels,
     settings:  this.settings,
     createdAt: this.createdAt,
   };

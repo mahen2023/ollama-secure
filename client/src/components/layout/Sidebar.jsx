@@ -11,6 +11,8 @@ import { deleteChat, patchChat } from '../../api/chats';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const UNDO_MS = 5000;
+
 const TAG_PALETTE = ['#10a37f', '#60a5fa', '#f59e0b', '#a78bfa', '#f87171', '#34d399', '#fb923c', '#e879f9'];
 
 function tagColor(tag) {
@@ -18,6 +20,9 @@ function tagColor(tag) {
   for (let i = 0; i < tag.length; i++) h = ((h << 5) + h + tag.charCodeAt(i)) & 0x7fffffff;
   return TAG_PALETTE[h % TAG_PALETTE.length];
 }
+
+// Grouped by last activity, so a chat continued today sits under "Today"
+const lastActive = (c) => new Date(c.updatedAt ?? c.createdAt).getTime();
 
 function groupByDate(chats) {
   const now = Date.now();
@@ -28,8 +33,8 @@ function groupByDate(chats) {
     { label: 'Last 7 days', items: [] },
     { label: 'Older',       items: [] },
   ];
-  chats.forEach((c) => {
-    const age = now - new Date(c.createdAt).getTime();
+  [...chats].sort((a, b) => lastActive(b) - lastActive(a)).forEach((c) => {
+    const age = now - lastActive(c);
     if      (age < DAY)       groups[0].items.push(c);
     else if (age < 2 * DAY)   groups[1].items.push(c);
     else if (age < 7 * DAY)   groups[2].items.push(c);
@@ -70,7 +75,6 @@ function ChatItem({ chat, active, unavailableModel, onSelect, onDelete, onRename
 
   const handleDelete = async (e) => {
     e.stopPropagation();
-    if (!confirm(`Delete "${chat.title}"?`)) return;
     onDelete(chat._id);
   };
 
@@ -78,7 +82,7 @@ function ChatItem({ chat, active, unavailableModel, onSelect, onDelete, onRename
     <div
       onClick={() => mode === 'view' && onSelect(chat._id)}
       className={`group relative flex flex-col px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors
-        ${active ? 'bg-[#2f2f2f] text-white' : 'text-[#adadad] hover:bg-[#252525] hover:text-white'}
+        ${active ? 'bg-panel text-white' : 'text-fg-soft hover:bg-ink hover:text-white'}
         ${unavailableModel && !active ? 'opacity-60' : ''}`}
     >
       {/* Main row */}
@@ -93,7 +97,7 @@ function ChatItem({ chat, active, unavailableModel, onSelect, onDelete, onRename
             onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') cancelEdit(); }}
             onClick={(e) => e.stopPropagation()}
             disabled={busy}
-            className="flex-1 bg-transparent text-white outline-none border-b border-[#10a37f] text-sm min-w-0"
+            className="flex-1 bg-transparent text-white outline-none border-b border-brand text-sm min-w-0"
           />
         ) : mode === 'tags' ? (
           <input
@@ -104,7 +108,7 @@ function ChatItem({ chat, active, unavailableModel, onSelect, onDelete, onRename
             onClick={(e) => e.stopPropagation()}
             disabled={busy}
             placeholder="work, code, research…"
-            className="flex-1 bg-transparent text-white outline-none border-b border-[#10a37f] text-xs placeholder-[#444] min-w-0"
+            className="flex-1 bg-transparent text-white outline-none border-b border-brand text-xs placeholder-fg-faint min-w-0"
           />
         ) : (
           <>
@@ -146,13 +150,13 @@ function ChatItem({ chat, active, unavailableModel, onSelect, onDelete, onRename
         >
           {mode === 'view' ? (
             <>
-              <button onClick={startRename} title="Rename" className="p-1 text-[#8e8ea0] hover:text-white">
+              <button onClick={startRename} title="Rename" className="p-1 text-fg-muted hover:text-white">
                 <Pencil className="w-3 h-3" />
               </button>
-              <button onClick={startTags} title="Edit tags" className="p-1 text-[#8e8ea0] hover:text-white">
+              <button onClick={startTags} title="Edit tags" className="p-1 text-fg-muted hover:text-white">
                 <Tag className="w-3 h-3" />
               </button>
-              <button onClick={handleDelete} title="Delete" className="p-1 text-[#8e8ea0] hover:text-red-400">
+              <button onClick={handleDelete} title="Delete" className="p-1 text-fg-muted hover:text-red-400">
                 <Trash2 className="w-3 h-3" />
               </button>
             </>
@@ -161,11 +165,11 @@ function ChatItem({ chat, active, unavailableModel, onSelect, onDelete, onRename
               <button
                 onClick={mode === 'rename' ? commitRename : commitTags}
                 disabled={busy}
-                className="p-1 text-[#10a37f] hover:text-white"
+                className="p-1 text-brand hover:text-white"
               >
                 <Check className="w-3 h-3" />
               </button>
-              <button onClick={cancelEdit} className="p-1 text-[#8e8ea0] hover:text-white">
+              <button onClick={cancelEdit} className="p-1 text-fg-muted hover:text-white">
                 <X className="w-3 h-3" />
               </button>
             </>
@@ -241,10 +245,44 @@ export default function Sidebar() {
     if (isMobile) setSidebarOpen(false);
   };
 
-  const handleDelete = async (id) => {
+  // Delete hides the chat at once and only hits the server after UNDO_MS, so Undo is free
+  const [pending, setPending] = useState(null); // { chat, index, timer }
+  const pendingRef = useRef(null);
+  pendingRef.current = pending;
+
+  const commitDelete = (p) => { clearTimeout(p.timer); deleteChat(token, p.chat._id).catch(() => {}); };
+
+  // Leaving (logout, route change) commits whatever is still waiting
+  useEffect(() => () => { if (pendingRef.current) commitDelete(pendingRef.current); }, []);
+
+  const handleDelete = (id) => {
+    if (pending) commitDelete(pending);
+    const index = chats.findIndex((c) => c._id === id);
+    const chat  = chats[index];
     removeChatFromList(id);
-    deleteChat(token, id).catch(() => {});
+    const timer = setTimeout(() => { deleteChat(token, id).catch(() => {}); setPending(null); }, UNDO_MS);
+    setPending({ chat, index, timer });
   };
+
+  const undoDelete = () => {
+    clearTimeout(pending.timer);
+    useStore.setState((s) => {
+      const next = [...s.chats];
+      next.splice(Math.min(pending.index, next.length), 0, pending.chat);
+      return { chats: next };
+    });
+    setPending(null);
+  };
+
+  const toast = pending && (
+    <div role="status" className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 pl-4 pr-2 py-2
+                                  rounded-xl bg-panel-hi border border-rule shadow-2xl text-sm text-fg max-w-[calc(100vw-32px)]">
+      <span className="truncate">Deleted “{pending.chat.title}”</span>
+      <button onClick={undoDelete} className="px-2.5 py-1 rounded-lg text-brand font-medium hover:bg-rule transition-colors shrink-0">
+        Undo
+      </button>
+    </div>
+  );
 
   const handleRename = async (id, title) => {
     updateChatMeta(id, { title });
@@ -285,21 +323,24 @@ export default function Sidebar() {
   const unavailableCount = chats.filter(isUnavailable).length;
 
   // Mobile: completely hidden when closed (hamburger lives in chat header)
-  if (!sidebarOpen && isMobile) return null;
+  if (!sidebarOpen && isMobile) return toast;
 
   // Desktop: collapsed icon bar
   if (!sidebarOpen) {
     return (
-      <aside className="w-14 h-full bg-[#171717] border-r border-[#2a2a2a] flex flex-col items-center pt-3 gap-2 shrink-0">
+      <>
+      <aside className="w-14 h-full bg-ink-deep border-r border-panel flex flex-col items-center pt-3 gap-2 shrink-0">
         <button onClick={toggleSidebar} title="Expand sidebar (Ctrl+/)"
-          className="p-2 text-[#8e8ea0] hover:text-white hover:bg-[#2a2a2a] rounded-lg transition-colors">
+          className="p-2 text-fg-muted hover:text-white hover:bg-panel rounded-lg transition-colors">
           <PanelLeft className="w-5 h-5" />
         </button>
         <button onClick={handleNewChat} title="New chat (Ctrl+K)"
-          className="p-2 text-[#8e8ea0] hover:text-white hover:bg-[#2a2a2a] rounded-lg transition-colors">
+          className="p-2 text-fg-muted hover:text-white hover:bg-panel rounded-lg transition-colors">
           <Plus className="w-5 h-5" />
         </button>
       </aside>
+      {toast}
+      </>
     );
   }
 
@@ -318,19 +359,19 @@ export default function Sidebar() {
       ${mobileOverlay
         ? 'fixed inset-y-0 left-0 z-50 safe-area w-72 max-w-[85vw]'
         : 'relative'}
-      ${mobileOverlay ? '' : 'w-64'} h-full bg-[#171717] border-r border-[#2a2a2a] flex flex-col shrink-0
+      ${mobileOverlay ? '' : 'w-64'} h-full bg-ink-deep border-r border-panel flex flex-col shrink-0
       ${mobileOverlay ? 'shadow-2xl' : ''}
     `}>
       {/* Header */}
       <div className="flex items-center gap-2 p-3">
         <button onClick={toggleSidebar} title="Collapse sidebar (Ctrl+/)"
-          className="p-2 text-[#8e8ea0] hover:text-white hover:bg-[#2a2a2a] rounded-lg transition-colors">
+          className="p-2 text-fg-muted hover:text-white hover:bg-panel rounded-lg transition-colors">
           <PanelLeftClose className="w-5 h-5" />
         </button>
         <button
           onClick={handleNewChat}
           title="New chat (Ctrl+K)"
-          className="flex-1 flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] hover:bg-[#333]
+          className="flex-1 flex items-center gap-2 px-3 py-2 bg-panel hover:bg-panel-hi
                      text-white rounded-lg transition-colors text-sm font-medium"
         >
           <Plus className="w-4 h-4" /> New Chat
@@ -339,21 +380,21 @@ export default function Sidebar() {
 
       {/* Search */}
       <div className="px-2 pb-1">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#2a2a2a] border border-[#3a3a3a]
-                        rounded-lg focus-within:border-[#10a37f] transition-colors">
-          <Search className="w-3.5 h-3.5 text-[#555] shrink-0" />
+        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-panel border border-rule
+                        rounded-lg focus-within:border-brand transition-colors">
+          <Search className="w-3.5 h-3.5 text-fg-faint shrink-0" />
           <input
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
             placeholder="Search chats…"
-            className="flex-1 bg-transparent text-sm text-[#ececec] placeholder-[#555]
+            className="flex-1 bg-transparent text-sm text-fg placeholder-fg-faint
                        focus:outline-none min-w-0"
           />
           {query && (
             <button onClick={() => { setQuery(''); searchRef.current?.focus(); }}
-              className="text-[#555] hover:text-[#8e8ea0] transition-colors shrink-0">
+              className="text-fg-faint hover:text-fg-muted transition-colors shrink-0">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -374,7 +415,7 @@ export default function Sidebar() {
                            transition-all leading-none"
                 style={{
                   background: active ? color + '33' : '#2a2a2a',
-                  color:      active ? color        : '#555',
+                  color:      active ? color        : '#888888',
                   border:     `1px solid ${active ? color + '66' : '#3a3a3a'}`,
                 }}
               >
@@ -395,7 +436,7 @@ export default function Sidebar() {
         {isEmpty ? (
           <div className="text-center mt-10">
             <AppLogo className="w-8 h-8 rounded-xl mx-auto mb-2 opacity-25" alt="" />
-            <p className="text-[#555] text-xs">
+            <p className="text-fg-faint text-xs">
               {tagFilter
                 ? `No chats tagged "${tagFilter}"`
                 : trimmed
@@ -405,7 +446,7 @@ export default function Sidebar() {
             {tagFilter && (
               <button
                 onClick={() => setTagFilter(null)}
-                className="mt-2 text-[10px] text-[#10a37f] hover:underline"
+                className="mt-2 text-[10px] text-brand hover:underline"
               >
                 Clear filter
               </button>
@@ -416,7 +457,7 @@ export default function Sidebar() {
             {groups.map(({ label, items }) =>
               items.length > 0 ? (
                 <div key={label}>
-                  <p className="text-[#555] text-xs font-medium px-3 py-1">{label}</p>
+                  <p className="text-fg-faint text-xs font-medium px-3 py-1">{label}</p>
                   {items.map((chat) => (
                     <ChatItem
                       key={chat._id}
@@ -436,7 +477,7 @@ export default function Sidebar() {
 
             {/* Offline model disclosure */}
             {unavailableCount > 0 && !tagFilter && !trimmed && (
-              <p className="text-[10px] text-[#444] text-center px-3 pb-1">
+              <p className="text-[10px] text-fg-faint text-center px-3 pb-1">
                 <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-500/40" />
                 {unavailableCount} chat{unavailableCount > 1 ? 's' : ''} using an offline model
               </p>
@@ -446,13 +487,13 @@ export default function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className="p-2 border-t border-[#2a2a2a]">
+      <div className="p-2 border-t border-panel">
         <div className="flex items-center gap-2.5 px-3 py-2 mb-1">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#10a37f] to-[#1a7f64] flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand to-brand-dim flex items-center justify-center shrink-0">
             <UserCircle className="w-4 h-4 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-[#adadad] truncate font-medium">{user?.username}</p>
+            <p className="text-sm text-fg-soft truncate font-medium">{user?.username}</p>
             {user?.role === 'admin' && (
               <p className="text-[10px] text-purple-400">Admin</p>
             )}
@@ -462,8 +503,8 @@ export default function Sidebar() {
         {user?.role === 'admin' && (
           <button
             onClick={() => { if (isMobile) setSidebarOpen(false); navigate('/admin'); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-[#8e8ea0] hover:text-purple-400
-                       hover:bg-[#2a2a2a] rounded-lg transition-colors text-sm"
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-fg-muted hover:text-purple-400
+                       hover:bg-panel rounded-lg transition-colors text-sm"
           >
             <ShieldCheck className="w-4 h-4" /> Admin Panel
           </button>
@@ -472,20 +513,21 @@ export default function Sidebar() {
         <button
           onClick={() => setSettingsOpen(true)}
           title="Settings (Ctrl+,)"
-          className="w-full flex items-center gap-3 px-3 py-2.5 text-[#8e8ea0] hover:text-white
-                     hover:bg-[#2a2a2a] rounded-lg transition-colors text-sm"
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-fg-muted hover:text-white
+                     hover:bg-panel rounded-lg transition-colors text-sm"
         >
           <Settings className="w-4 h-4" /> Settings
         </button>
         <button
           onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 text-[#8e8ea0] hover:text-red-400
-                     hover:bg-[#2a2a2a] rounded-lg transition-colors text-sm"
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-fg-muted hover:text-red-400
+                     hover:bg-panel rounded-lg transition-colors text-sm"
         >
           <LogOut className="w-4 h-4" /> Sign out
         </button>
       </div>
     </aside>
+    {toast}
     </>
   );
 }

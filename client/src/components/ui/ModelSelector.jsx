@@ -47,18 +47,18 @@ export default function ModelSelector() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-2.5 py-2 md:py-1.5 hover:bg-[#2a2a2a]
+        className="flex items-center gap-1.5 px-2.5 py-2 md:py-1.5 hover:bg-panel
                    text-base md:text-sm font-medium text-white rounded-lg transition-colors w-full max-w-[260px] min-w-0 overflow-hidden"
       >
         <span className="truncate text-left">{selectedModel || 'Select model'}</span>
-        <ChevronDown className={`w-4 h-4 text-[#8e8ea0] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-fg-muted shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 w-80 max-w-[calc(100vw-1rem)] bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl shadow-2xl z-50">
+        <div className="absolute top-full mt-1 left-0 w-80 max-w-[calc(100vw-1rem)] bg-panel border border-rule rounded-xl shadow-2xl z-50">
           <div className="flex items-center justify-between px-3 pt-3 pb-2">
-            <span className="text-xs font-semibold text-[#8e8ea0] uppercase tracking-wide">Available Models</span>
-            <button onClick={refresh} title="Refresh models" className="p-2 -m-2 text-[#8e8ea0] hover:text-white transition-colors">
+            <span className="text-xs font-semibold text-fg-muted uppercase tracking-wide">Available Models</span>
+            <button onClick={refresh} title="Refresh models" className="p-2 -m-2 text-fg-muted hover:text-white transition-colors">
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -70,7 +70,7 @@ export default function ModelSelector() {
                 return !name.includes('embed') && !family.includes('embed') && !family.includes('bert');
               });
               return chatModels.length === 0 ? (
-                <p className="text-[#555] text-sm text-center py-4">No models — pull one first</p>
+                <p className="text-fg-faint text-sm text-center py-4">No models — pull one first</p>
               ) : (
                 chatModels.map((m) => (
                 <button
@@ -78,8 +78,8 @@ export default function ModelSelector() {
                   onClick={() => { setSelectedModel(m.name); setOpen(false); }}
                   className={`w-full text-left px-3 py-2.5 mx-1 rounded-lg text-sm transition-colors flex items-start gap-3
                     ${m.name === selectedModel
-                      ? 'bg-[#10a37f]/20 text-[#10a37f]'
-                      : 'text-[#ececec] hover:bg-[#333]'}`}
+                      ? 'bg-brand/20 text-brand'
+                      : 'text-fg hover:bg-panel-hi'}`}
                   style={{ width: 'calc(100% - 8px)' }}
                 >
                   <Cpu className="w-4 h-4 mt-0.5 shrink-0" />
@@ -91,7 +91,7 @@ export default function ModelSelector() {
                     </div>
                   </div>
                   {m.name === selectedModel && (
-                    <span className="ml-auto text-xs bg-[#10a37f]/20 text-[#10a37f] px-1.5 py-0.5 rounded">active</span>
+                    <span className="ml-auto text-xs bg-brand/20 text-brand px-1.5 py-0.5 rounded">active</span>
                   )}
                 </button>
                 ))

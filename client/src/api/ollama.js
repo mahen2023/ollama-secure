@@ -49,7 +49,7 @@ export async function streamChat({ token, model, messages, systemPrompt, tempera
         try {
           const data = JSON.parse(line);
           if (data.message?.content) onChunk(data.message.content);
-          if (data.done) { await onDone?.(); return; }
+          if (data.done) { await onDone?.(data); return; }
         } catch { /* skip malformed line */ }
       }
     }
@@ -88,4 +88,17 @@ export async function generateTitle(token, model, userMessage) {
   if (!res.ok) return null;
   const data = await res.json();
   return data.message?.content?.trim() ?? null;
+}
+
+// Generation speed from Ollama's final chunk (eval_duration is in nanoseconds)
+export function tokensPerSec(data) {
+  return data?.eval_count && data?.eval_duration
+    ? Math.round(data.eval_count / (data.eval_duration / 1e9))
+    : undefined;
+}
+
+// Tokens the conversation now occupies in the model's context window.
+// prompt_eval_count is the whole prompt even when Ollama reuses its prompt cache.
+export function contextUsed(data) {
+  return data?.prompt_eval_count ? data.prompt_eval_count + (data.eval_count ?? 0) : undefined;
 }

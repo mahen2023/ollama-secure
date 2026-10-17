@@ -91,13 +91,13 @@ function FileChip({ file, onRemove }) {
         <img
           src={file.dataUri}
           alt={file.name}
-          className="w-16 h-16 rounded-xl object-cover border border-[#3a3a3a]"
+          className="w-16 h-16 rounded-xl object-cover border border-rule"
         />
         <button
           onClick={onRemove}
-          className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#1a1a1a] border border-[#3a3a3a]
-                     text-[#8e8ea0] hover:text-red-400 hover:border-red-400 transition-colors
-                     flex items-center justify-center opacity-0 group-hover:opacity-100"
+          className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-ink-deep border border-rule
+                     text-fg-muted hover:text-red-400 hover:border-red-400 transition-colors
+                     flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
         >
           <X className="w-2.5 h-2.5" />
         </button>
@@ -110,12 +110,12 @@ function FileChip({ file, onRemove }) {
   }
 
   return (
-    <div className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg px-2 py-1 max-w-[180px]">
-      <FileText className="w-3.5 h-3.5 text-[#10a37f] shrink-0" />
-      <span className="text-xs text-[#adadad] truncate flex-1">{file.name}</span>
+    <div className="flex items-center gap-1.5 bg-ink-deep border border-rule rounded-lg px-2 py-1 max-w-[180px]">
+      <FileText className="w-3.5 h-3.5 text-brand shrink-0" />
+      <span className="text-xs text-fg-soft truncate flex-1">{file.name}</span>
       <button
         onClick={onRemove}
-        className="text-[#555] hover:text-red-400 transition-colors shrink-0"
+        className="text-fg-faint hover:text-red-400 transition-colors shrink-0"
       >
         <X className="w-3 h-3" />
       </button>
@@ -123,7 +123,7 @@ function FileChip({ file, onRemove }) {
   );
 }
 
-export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
+export default function ChatInput({ onSend, onStop, isGenerating, onVoice, showHints }) {
   const [input,       setInput]       = useState('');
   const [attachments, setAttachments] = useState([]);
   const [processing,  setProcessing]  = useState(false);
@@ -259,7 +259,7 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
   };
 
   return (
-    <div className="bg-[#212121] px-2 md:px-4 pb-2 md:pb-4 pt-2">
+    <div className="bg-ink px-2 md:px-4 pb-2 md:pb-4 pt-2">
       <div className="max-w-3xl mx-auto">
         {!selectedModel && (
           <div className="flex items-center gap-2 text-amber-400 text-xs mb-2 px-1">
@@ -271,15 +271,15 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
           <div className="flex items-start gap-2 text-red-400 text-xs mb-2 px-1">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>{fileError}</span>
-            <button onClick={() => setFileError('')} className="ml-auto text-[#555] hover:text-red-400 shrink-0">
+            <button onClick={() => setFileError('')} className="ml-auto text-fg-faint hover:text-red-400 shrink-0">
               <X className="w-3 h-3" />
             </button>
           </div>
         )}
 
         <div
-          className="relative bg-[#2f2f2f] border border-[#3a3a3a] rounded-3xl
-                     focus-within:border-[#4a4a4a] transition-colors shadow-sm"
+          className="relative bg-panel border border-rule rounded-3xl
+                     focus-within:border-rule-hi transition-colors shadow-sm"
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
         >
@@ -287,16 +287,16 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
           {showMenu && (
             <div
               ref={menuRef}
-              className="absolute bottom-full left-0 right-0 mb-2 bg-[#1c1c1c] border border-[#3a3a3a]
+              className="absolute bottom-full left-0 right-0 mb-2 bg-ink-deep border border-rule
                          rounded-xl shadow-2xl overflow-hidden z-20"
             >
-              <div className="px-3 py-1.5 border-b border-[#2a2a2a] flex items-center justify-between">
-                <span className="text-[10px] text-[#555] font-medium uppercase tracking-wider">Prompt Templates</span>
-                <span className="text-[10px] text-[#444]">↑↓ navigate · Enter insert · Esc cancel</span>
+              <div className="px-3 py-1.5 border-b border-panel flex items-center justify-between">
+                <span className="text-[10px] text-fg-faint font-medium uppercase tracking-wider">Prompt Templates</span>
+                <span className="text-[10px] text-fg-faint">↑↓ navigate · Enter insert · Esc cancel</span>
               </div>
               <div className="max-h-64 overflow-y-auto">
                 {menuTemplates.length === 0 ? (
-                  <p className="px-3 py-3 text-sm text-[#555]">No templates matching "/{slashQuery}"</p>
+                  <p className="px-3 py-3 text-sm text-fg-faint">No templates matching "/{slashQuery}"</p>
                 ) : (
                   menuTemplates.map((t, i) => (
                     <button
@@ -305,12 +305,12 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
                       onClick={() => insertTemplate(t)}
                       onMouseEnter={() => setMenuIndex(i)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
-                        ${i === menuIndex ? 'bg-[#2a2a2a]' : 'hover:bg-[#242424]'}`}
+                        ${i === menuIndex ? 'bg-panel' : 'hover:bg-ink'}`}
                     >
-                      <span className="text-[#10a37f] font-mono text-xs w-20 shrink-0">/{t.id}</span>
+                      <span className="text-brand font-mono text-xs w-20 shrink-0">/{t.id}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm text-[#ececec] font-medium leading-none mb-0.5">{t.label}</p>
-                        <p className="text-xs text-[#555] truncate">{t.desc}</p>
+                        <p className="text-sm text-fg font-medium leading-none mb-0.5">{t.label}</p>
+                        <p className="text-xs text-fg-faint truncate">{t.desc}</p>
                       </div>
                     </button>
                   ))
@@ -345,10 +345,10 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
               title="Attach files, images, or PDFs"
               disabled={processing}
               className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
-                         hover:bg-[#3a3a3a] text-[#adadad] hover:text-white disabled:cursor-wait"
+                         hover:bg-rule text-fg-soft hover:text-white disabled:cursor-wait"
             >
               {processing
-                ? <Loader2 className="w-5 h-5 md:w-4 md:h-4 animate-spin text-[#10a37f]" />
+                ? <Loader2 className="w-5 h-5 md:w-4 md:h-4 animate-spin text-brand" />
                 : <Plus className="w-5 h-5 md:w-4 md:h-4" />}
             </button>
 
@@ -360,7 +360,7 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
               placeholder={selectedModel ? 'Message' : 'Select a model first'}
               disabled={!selectedModel}
               rows={1}
-              className="flex-1 min-w-0 bg-transparent text-[#ececec] placeholder-[#555] resize-none
+              className="flex-1 min-w-0 bg-transparent text-fg placeholder-fg-faint resize-none
                          px-1 py-2 md:py-1 focus:outline-none text-base md:text-sm leading-6 max-h-52
                          disabled:opacity-40 disabled:cursor-not-allowed"
             />
@@ -372,8 +372,8 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
                 disabled={!selectedModel}
                 title={dictating ? 'Stop dictation' : 'Dictate'}
                 className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
-                  disabled:text-[#555] disabled:cursor-not-allowed
-                  ${dictating ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-[#3a3a3a] text-[#adadad] hover:text-white'}`}
+                  disabled:text-fg-faint disabled:cursor-not-allowed
+                  ${dictating ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-rule text-fg-soft hover:text-white'}`}
               >
                 <Mic className="w-5 h-5 md:w-4 md:h-4" />
               </button>
@@ -386,8 +386,8 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
                 disabled={!selectedModel}
                 title="Voice mode"
                 className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
-                           bg-[#10a37f] hover:bg-[#0d9270] text-white
-                           disabled:bg-[#3a3a3a] disabled:text-[#555] disabled:cursor-not-allowed"
+                           bg-brand hover:bg-brand-dim text-white
+                           disabled:bg-rule disabled:text-fg-faint disabled:cursor-not-allowed"
               >
                 <AudioLines className="w-5 h-5 md:w-4 md:h-4" />
               </button>
@@ -398,7 +398,7 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
                 disabled={!isGenerating && !canSend}
                 title={isGenerating ? 'Stop generating' : 'Send message'}
                 className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors shrink-0
-                  ${isGenerating || canSend ? 'bg-white text-black hover:bg-[#ddd]' : 'bg-[#3a3a3a] text-[#555] cursor-not-allowed'}`}
+                  ${isGenerating || canSend ? 'bg-white text-black hover:bg-fg' : 'bg-rule text-fg-faint cursor-not-allowed'}`}
               >
                 {isGenerating
                   ? <Square className="w-3.5 h-3.5 fill-current" />
@@ -408,9 +408,11 @@ export default function ChatInput({ onSend, onStop, isGenerating, onVoice }) {
           </div>
         </div>
 
-        <p className="hidden sm:block text-center text-[#444] text-xs mt-2">
-          Enter to send · Shift+Enter for new line · / for templates · Drop files to attach
-        </p>
+        {showHints && (
+          <p className="hidden sm:block text-center text-fg-faint text-xs mt-2">
+            Enter to send, Shift+Enter for a new line, / for templates. Press ? outside the message box for all shortcuts.
+          </p>
+        )}
       </div>
     </div>
   );

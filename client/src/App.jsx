@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
@@ -10,7 +10,8 @@ import LoginPage   from './components/auth/LoginPage';
 import Sidebar     from './components/layout/Sidebar';
 import ChatPage    from './components/chat/ChatPage';
 import SettingsModal from './components/settings/SettingsModal';
-import AdminPage   from './components/admin/AdminPage';
+// Admin-only, so it loads on first visit instead of in every user's bundle
+const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 
 // Android back button: close the top-most overlay first, then navigate back,
 // and only leave the app (to the background, like Home) when there's nothing else.
@@ -39,8 +40,48 @@ function RequireAdmin({ children }) {
   return user?.role === 'admin' ? children : <Navigate to="/" replace />;
 }
 
+const SHORTCUTS = [
+  ['Ctrl K', 'New chat'],
+  ['Ctrl /', 'Show or hide the sidebar'],
+  ['Ctrl ,', 'Open settings'],
+  ['Enter', 'Send message'],
+  ['Shift Enter', 'New line'],
+  ['/', 'Prompt templates (at the start of a message)'],
+  ['?', 'Show these shortcuts'],
+];
+
+function ShortcutSheet({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        role="dialog" aria-modal="true" aria-labelledby="shortcuts-title"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl bg-ink-deep border border-rule p-5 shadow-2xl"
+      >
+        <h2 id="shortcuts-title" className="text-base font-semibold text-fg mb-4">Keyboard shortcuts</h2>
+        <dl className="space-y-2.5 text-sm">
+          {SHORTCUTS.map(([keys, what]) => (
+            <div key={keys} className="flex items-center justify-between gap-4">
+              <dt className="text-fg-muted">{what}</dt>
+              <dd className="flex gap-1 shrink-0">
+                {keys.split(' ').map((k) => (
+                  <kbd key={k} className="min-w-[1.75rem] px-1.5 py-0.5 rounded-md bg-panel border border-rule text-xs text-fg font-mono text-center">{k}</kbd>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <button autoFocus onClick={onClose} className="mt-5 w-full py-2 rounded-xl bg-panel hover:bg-panel-hi text-sm text-fg transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AppLayout() {
   const { settingsOpen } = useStore();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Close sidebar by default on mobile; re-close if window shrinks past breakpoint
   useEffect(() => {
@@ -55,12 +96,15 @@ function AppLayout() {
 
   useEffect(() => {
     const handler = (e) => {
-      const ctrl = e.ctrlKey || e.metaKey;
-      if (!ctrl) return;
-
       const inField =
         ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) ||
         document.activeElement?.contentEditable === 'true';
+
+      if (e.key === 'Escape') { setShortcutsOpen(false); return; }
+      if (e.key === '?' && !inField) { e.preventDefault(); setShortcutsOpen((v) => !v); return; }
+
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
 
       // Ctrl+K — new chat (fire even inside text fields, matches ChatGPT / Claude convention)
       if (e.key === 'k' || e.key === 'K') {
@@ -90,12 +134,13 @@ function AppLayout() {
   }, []);
 
   return (
-    <div className="flex h-[100dvh] bg-[#212121] overflow-hidden safe-area">
+    <div className="flex h-[100dvh] bg-ink overflow-hidden safe-area">
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0">
         <ChatPage />
       </main>
       {settingsOpen && <SettingsModal />}
+      {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
     </div>
   );
 }
@@ -129,7 +174,7 @@ export default function App() {
         element={
           <RequireAuth>
             <RequireAdmin>
-              <AdminPage />
+              <Suspense fallback={null}><AdminPage /></Suspense>
             </RequireAdmin>
           </RequireAuth>
         }

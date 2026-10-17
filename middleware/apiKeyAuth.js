@@ -2,9 +2,11 @@ const ApiKey = require('../models/ApiKey');
 const User   = require('../models/User');
 
 module.exports = async function apiKeyAuth(req, res, next) {
-  const raw = req.headers['x-api-key'];
+  // x-api-key for our own clients; OpenAI SDKs send the key as a Bearer token
+  const bearer = req.headers.authorization?.match(/^Bearer (ok_\w+)$/)?.[1];
+  const raw = req.headers['x-api-key'] || bearer;
   if (!raw) {
-    return res.status(401).json({ error: 'Missing x-api-key header' });
+    return res.status(401).json({ error: 'Missing API key: send x-api-key, or Authorization: Bearer <key>' });
   }
   try {
     const key = await ApiKey.findByKey(raw);

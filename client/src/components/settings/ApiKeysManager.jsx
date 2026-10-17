@@ -12,8 +12,8 @@ function CopyButton({ text }) {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button onClick={copy} className="shrink-0 text-[#8e8ea0] hover:text-white transition-colors p-1">
-      {copied ? <Check className="w-4 h-4 text-[#10a37f]" /> : <Copy className="w-4 h-4" />}
+    <button onClick={copy} className="shrink-0 text-fg-muted hover:text-white transition-colors p-1">
+      {copied ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
     </button>
   );
 }
@@ -27,13 +27,13 @@ function NewKeyBanner({ rawKey, onDismiss }) {
           Copy this key now — it will never be shown again
         </p>
       </div>
-      <div className="flex items-center gap-2 bg-[#0d0d0d] border border-[#3a3a3a] rounded-lg px-3 py-2">
-        <code className="flex-1 text-xs text-[#ececec] font-mono break-all select-all">{rawKey}</code>
+      <div className="flex items-center gap-2 bg-ink-abyss border border-rule rounded-lg px-3 py-2">
+        <code className="flex-1 text-xs text-fg font-mono break-all select-all">{rawKey}</code>
         <CopyButton text={rawKey} />
       </div>
       <button
         onClick={onDismiss}
-        className="text-xs text-[#555] hover:text-[#8e8ea0] transition-colors"
+        className="text-xs text-fg-faint hover:text-fg-muted transition-colors"
       >
         I've stored it — dismiss
       </button>
@@ -61,7 +61,14 @@ curl ${origin}/v1/generate \\
 curl ${origin}/v1/embed \\
   -H "x-api-key: ok_..." \\
   -H "Content-Type: application/json" \\
-  -d '{"model":"nomic-embed-text","input":"Your text here"}'`;
+  -d '{"model":"nomic-embed-text","input":"Your text here"}'
+
+# OpenAI-compatible: point any OpenAI SDK or tool at this base URL
+#   base_url = "${origin}/v1"   api_key = "ok_..."
+curl ${origin}/v1/chat/completions \
+  -H "Authorization: Bearer ok_..." \
+  -H "Content-Type: application/json" \
+  -d '{"model":"llama3.2","messages":[{"role":"user","content":"Hello!"}]}'`;
 
 export default function ApiKeysManager() {
   const { token } = useStore();
@@ -128,13 +135,13 @@ export default function ApiKeysManager() {
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Key name — e.g. My App"
           maxLength={60}
-          className="flex-1 bg-[#2a2a2a] border border-[#3a3a3a] text-white rounded-xl px-3 py-2 text-sm
-                     focus:outline-none focus:border-[#10a37f] placeholder-[#555]"
+          className="flex-1 bg-panel border border-rule text-white rounded-xl px-3 py-2 text-sm
+                     focus:outline-none focus:border-brand placeholder-fg-faint"
         />
         <button
           type="submit"
           disabled={creating || !newName.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#10a37f] hover:bg-[#0d9270]
+          className="flex items-center gap-1.5 px-4 py-2 bg-brand hover:bg-brand-dim
                      disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl
                      text-sm font-medium transition-colors shrink-0"
         >
@@ -149,41 +156,41 @@ export default function ApiKeysManager() {
 
       {/* Keys list */}
       {loading ? (
-        <div className="flex items-center justify-center gap-2 py-8 text-[#555] text-sm">
+        <div className="flex items-center justify-center gap-2 py-8 text-fg-faint text-sm">
           <RefreshCw className="w-4 h-4 animate-spin" /> Loading…
         </div>
       ) : keys.length === 0 ? (
-        <div className="text-center py-8 border border-dashed border-[#2a2a2a] rounded-xl">
-          <Key className="w-8 h-8 text-[#2a2a2a] mx-auto mb-2" />
-          <p className="text-[#555] text-sm">No API keys yet</p>
-          <p className="text-[#444] text-xs mt-1">Generate one above to get started</p>
+        <div className="text-center py-8 border border-dashed border-panel rounded-xl">
+          <Key className="w-8 h-8 text-panel mx-auto mb-2" />
+          <p className="text-fg-faint text-sm">No API keys yet</p>
+          <p className="text-fg-faint text-xs mt-1">Generate one above to get started</p>
         </div>
       ) : (
         <div className="space-y-2">
           {keys.map((k) => (
             <div key={k._id}
-              className="flex items-center gap-3 bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl px-4 py-3">
-              <Key className="w-4 h-4 text-[#10a37f] shrink-0" />
+              className="flex items-center gap-3 bg-ink-deep border border-panel rounded-xl px-4 py-3">
+              <Key className="w-4 h-4 text-brand shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate">{k.name}</p>
-                <p className="text-[#555] text-xs font-mono mt-0.5">
+                <p className="text-fg-faint text-xs font-mono mt-0.5">
                   {k.keyPrefix}<span className="opacity-40">{'•'.repeat(20)}</span>
                 </p>
               </div>
               <div className="text-right shrink-0 mr-2">
-                <p className="text-[#555] text-xs">
+                <p className="text-fg-faint text-xs">
                   {k.lastUsed
                     ? `Last used ${new Date(k.lastUsed).toLocaleDateString()}`
                     : 'Never used'}
                 </p>
-                <p className="text-[#444] text-xs mt-0.5">
+                <p className="text-fg-faint text-xs mt-0.5">
                   Created {new Date(k.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <button
                 onClick={() => handleRevoke(k._id, k.name)}
                 title="Revoke key"
-                className="text-[#444] hover:text-red-400 transition-colors p-1 shrink-0"
+                className="text-fg-faint hover:text-red-400 transition-colors p-1 shrink-0"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -193,14 +200,14 @@ export default function ApiKeysManager() {
       )}
 
       {/* Usage reference */}
-      <div className="border-t border-[#2a2a2a] pt-5 space-y-2">
+      <div className="border-t border-panel pt-5 space-y-2">
         <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-[#10a37f]" />
+          <Terminal className="w-4 h-4 text-brand" />
           <span className="text-sm font-semibold text-white">Usage</span>
-          <span className="text-xs text-[#555] ml-1">— pass x-api-key header, no login required</span>
+          <span className="text-xs text-fg-faint ml-1">Send the key as x-api-key, or as a Bearer token for OpenAI SDKs</span>
         </div>
         <div className="relative group">
-          <pre className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-4 text-xs text-[#8e8ea0]
+          <pre className="bg-ink-abyss border border-panel rounded-xl p-4 text-xs text-fg-muted
                          font-mono overflow-x-auto leading-5 whitespace-pre">
             {CURL_EXAMPLE(serverOrigin)}
           </pre>
@@ -215,18 +222,21 @@ export default function ApiKeysManager() {
             { method: 'POST', path: '/v1/chat',       desc: 'Chat (streaming ok)' },
             { method: 'POST', path: '/v1/generate',   desc: 'Text generation' },
             { method: 'POST', path: '/v1/embed',      desc: 'Generate embeddings' },
-            { method: 'POST', path: '/v1/embeddings', desc: 'Embeddings (OpenAI compat)' },
-            { method: 'POST', path: '/v1/pull',       desc: 'Pull a model' },
+            { method: 'POST', path: '/v1/show',       desc: 'Model details' },
+            { method: 'POST', path: '/v1/chat/completions', desc: 'Chat (OpenAI format)' },
+            { method: 'POST', path: '/v1/completions',      desc: 'Text completion (OpenAI format)' },
+            { method: 'POST', path: '/v1/embeddings',       desc: 'Embeddings (OpenAI format)' },
+            { method: 'GET',  path: '/v1/models',           desc: 'List models (OpenAI format)' },
           ].map(({ method, path, desc }) => (
-            <div key={path} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2">
+            <div key={path} className="bg-ink-deep border border-panel rounded-lg px-3 py-2">
               <div className="flex items-center gap-2">
                 <span className={`font-mono font-bold text-[10px]
                   ${method === 'GET' ? 'text-green-400' : 'text-blue-400'}`}>
                   {method}
                 </span>
-                <code className="text-[#adadad] font-mono">{path}</code>
+                <code className="text-fg-soft font-mono">{path}</code>
               </div>
-              <p className="text-[#555] mt-0.5">{desc}</p>
+              <p className="text-fg-faint mt-0.5">{desc}</p>
             </div>
           ))}
         </div>

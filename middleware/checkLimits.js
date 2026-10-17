@@ -1,13 +1,23 @@
 const User     = require('../models/User');
 const UsageLog = require('../models/UsageLog');
 
-module.exports = async function checkLimits(req, res, next) {
-  // Only gate inference POST requests
-  if (req.method !== 'POST' || !req.body?.model) return next();
+// Ollama treats "nomic-embed-text" and "nomic-embed-text:latest" as the same model
+const modelKey = (name) => (name.includes(':') ? name : `${name}:latest`);
 
+module.exports = async function checkLimits(req, res, next) {
   try {
-    const user = await User.findById(req.userId).select('role limits').lean();
+    const user = await User.findById(req.userId).select('role limits allowedModels').lean();
     if (!user || user.role === 'admin') return next(); // admins are unlimited
+
+    // Empty list = every model. Exposed (normalised) for the filtered /tags listing.
+    req.allowedModels = (user.allowedModels ?? []).map(modelKey);
+
+    // Only gate inference POST requests
+    if (req.method !== 'POST' || !req.body?.model) return next();
+
+    if (req.allowedModels.length && !req.allowedModels.includes(modelKey(String(req.body.model)))) {
+      return res.status(403).json({ error: `You don't have access to ${req.body.model}. Ask your admin to enable it.` });
+    }
 
     const { dailyTokens = 0, totalTokens = 0 } = user.limits || {};
 
@@ -39,6 +49,9 @@ module.exports = async function checkLimits(req, res, next) {
 
     next();
   } catch {
-    next(); // never block on limit-check errors
+    // Fail closed: skipping this would also skip the model allowlist
+    res.status(503).json({ error: 'Could not check your usage limits. Try again shortly.' });
   }
 };
+
+module.exports.modelKey = modelKey;

@@ -6,15 +6,15 @@ import { getAdminAnalytics } from '../../api/admin';
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, color = '#10a37f' }) {
   return (
-    <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4">
+    <div className="bg-ink-deep border border-panel rounded-xl p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: color + '22' }}>
           <Icon className="w-3.5 h-3.5" style={{ color }} />
         </div>
-        <span className="text-xs text-[#555] font-medium">{label}</span>
+        <span className="text-xs text-fg-faint font-medium">{label}</span>
       </div>
       <p className="text-2xl font-bold text-white tabular-nums">{value}</p>
-      {sub && <p className="text-xs text-[#555] mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-fg-faint mt-1">{sub}</p>}
     </div>
   );
 }
@@ -25,7 +25,7 @@ function AreaChart({ data, valueKey, color = '#10a37f', height = 140 }) {
   const svgRef = useRef(null);
 
   if (!data?.length) {
-    return <p className="text-[#555] text-xs text-center py-10">No data for this period</p>;
+    return <p className="text-fg-faint text-xs text-center py-10">No data for this period</p>;
   }
 
   const W = 560, PL = 42, PR = 8, PT = 10, PB = 22;
@@ -76,13 +76,13 @@ function AreaChart({ data, valueKey, color = '#10a37f', height = 140 }) {
         {/* Horizontal grid lines */}
         {yTicks.map((t, i) => (
           <line key={i} x1={PL} y1={t.y} x2={W - PR} y2={t.y}
-            stroke="#232323" strokeWidth="1" />
+            stroke="#212121" strokeWidth="1" />
         ))}
 
         {/* Y-axis labels */}
         {yTicks.map((t, i) => (
           <text key={i} x={PL - 6} y={t.y + 3.5} textAnchor="end"
-            fontSize="9" fill="#4a4a4a">{t.label}</text>
+            fontSize="9" fill="#404040">{t.label}</text>
         ))}
 
         {/* Area fill */}
@@ -95,7 +95,7 @@ function AreaChart({ data, valueKey, color = '#10a37f', height = 140 }) {
         {/* X-axis date labels */}
         {xLabels.map((p, i) => (
           <text key={i} x={p.x} y={height - 5} textAnchor="middle"
-            fontSize="9" fill="#444">
+            fontSize="9" fill="#888888">
             {typeof p.id === 'string' && p.id.includes('-') ? p.id.slice(5) : p.id}
           </text>
         ))}
@@ -119,7 +119,7 @@ function AreaChart({ data, valueKey, color = '#10a37f', height = 140 }) {
             <line x1={tip.x} y1={PT} x2={tip.x} y2={height - PB}
               stroke="#3a3a3a" strokeWidth="1" strokeDasharray="3 3" />
             <circle cx={tip.x} cy={tip.y} r="3.5" fill={color}
-              stroke="#121212" strokeWidth="1.5" />
+              stroke="#141414" strokeWidth="1.5" />
 
             {/* Tooltip box */}
             {(() => {
@@ -127,9 +127,9 @@ function AreaChart({ data, valueKey, color = '#10a37f', height = 140 }) {
               return (
                 <g>
                   <rect x={bx} y={PT + 2} width={74} height={34} rx="5"
-                    fill="#111" stroke="#2a2a2a" strokeWidth="1" />
+                    fill="#141414" stroke="#2a2a2a" strokeWidth="1" />
                   <text x={bx + 37} y={PT + 15} textAnchor="middle"
-                    fontSize="9" fill="#666">
+                    fontSize="9" fill="#888888">
                     {typeof tip.id === 'string' && tip.id.includes('-') ? tip.id.slice(5) : tip.id}
                   </text>
                   <text x={bx + 37} y={PT + 28} textAnchor="middle"
@@ -151,7 +151,7 @@ function StackedBarChart({ data, height = 100 }) {
   const [tip, setTip] = useState(null);
 
   if (!data?.length) {
-    return <p className="text-[#555] text-xs text-center py-6">No data</p>;
+    return <p className="text-fg-faint text-xs text-center py-6">No data</p>;
   }
 
   const totals = data.map((d) => (d.webReqs || 0) + (d.apiReqs || 0));
@@ -196,7 +196,7 @@ function StackedBarChart({ data, height = 100 }) {
           const label = typeof d._id === 'string' && d._id.includes('-') ? d._id.slice(5) : d._id;
           return (
             <div key={i} className="flex-1 text-center">
-              {show && <span className="text-[9px] text-[#444]">{label}</span>}
+              {show && <span className="text-[9px] text-fg-faint">{label}</span>}
             </div>
           );
         })}
@@ -206,9 +206,9 @@ function StackedBarChart({ data, height = 100 }) {
       {tip && (
         <div className="absolute top-0 left-0 pointer-events-none z-10"
           style={{ left: `${(tip.i / data.length) * 100}%`, transform: 'translateX(-50%)' }}>
-          <div className="bg-[#111] border border-[#2a2a2a] rounded-lg px-2.5 py-2 text-xs whitespace-nowrap shadow-xl -translate-y-full mb-1">
-            <p className="text-[#555] mb-1">{typeof tip.id === 'string' ? tip.id : tip.id}</p>
-            <p className="text-[#10a37f]">Web: <span className="text-white font-semibold">{tip.web.toLocaleString()}</span></p>
+          <div className="bg-ink-abyss border border-panel rounded-lg px-2.5 py-2 text-xs whitespace-nowrap shadow-xl -translate-y-full mb-1">
+            <p className="text-fg-faint mb-1">{typeof tip.id === 'string' ? tip.id : tip.id}</p>
+            <p className="text-brand">Web: <span className="text-white font-semibold">{tip.web.toLocaleString()}</span></p>
             <p className="text-[#a78bfa]">API: <span className="text-white font-semibold">{tip.api.toLocaleString()}</span></p>
           </div>
         </div>
@@ -256,7 +256,7 @@ function DonutChart({ slices, size = 80 }) {
 
 // ── Horizontal bar (model/user ranking) ──────────────────────────────────────
 function RankedBars({ rows, valueKey = 'tokens', labelKey, colorA = '#10a37f', colorB }) {
-  if (!rows?.length) return <p className="text-[#555] text-xs text-center py-6">No data</p>;
+  if (!rows?.length) return <p className="text-fg-faint text-xs text-center py-6">No data</p>;
   const max = Math.max(...rows.map((r) => r[valueKey] || 0), 1);
 
   return (
@@ -268,15 +268,15 @@ function RankedBars({ rows, valueKey = 'tokens', labelKey, colorA = '#10a37f', c
           : colorA;
         return (
           <div key={i} className="flex items-center gap-3">
-            <span className="text-xs text-[#444] w-4 text-right tabular-nums shrink-0">{i + 1}</span>
+            <span className="text-xs text-fg-faint w-4 text-right tabular-nums shrink-0">{i + 1}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-[#adadad] truncate">{r[labelKey] || '—'}</span>
-                <span className="text-xs text-[#555] tabular-nums ml-2 shrink-0">
+                <span className="text-xs text-fg-soft truncate">{r[labelKey] || '—'}</span>
+                <span className="text-xs text-fg-faint tabular-nums ml-2 shrink-0">
                   {(r[valueKey] || 0).toLocaleString()}
                 </span>
               </div>
-              <div className="w-full bg-[#252525] rounded-full h-1.5">
+              <div className="w-full bg-ink rounded-full h-1.5">
                 <div
                   className="h-1.5 rounded-full transition-all"
                   style={{ width: `${pct}%`, background: colorA, opacity: 0.75 + 0.25 * (1 - i / rows.length) }}
@@ -310,7 +310,7 @@ export default function AnalyticsTab() {
   useEffect(() => { load(); }, [token, days]);
 
   if (loading) return (
-    <div className="flex items-center justify-center gap-2 py-20 text-[#555]">
+    <div className="flex items-center justify-center gap-2 py-20 text-fg-faint">
       <RefreshCw className="w-5 h-5 animate-spin" /> Loading analytics…
     </div>
   );
@@ -332,13 +332,13 @@ export default function AnalyticsTab() {
       {/* ── Period + metric controls ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[#555]">Period:</span>
+          <span className="text-xs text-fg-faint">Period:</span>
           {[7, 14, 30, 90].map((d) => (
             <button
               key={d}
               onClick={() => setDays(d)}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors
-                ${days === d ? 'bg-[#10a37f] text-white' : 'bg-[#2a2a2a] text-[#8e8ea0] hover:text-white'}`}
+                ${days === d ? 'bg-brand text-white' : 'bg-panel text-fg-muted hover:text-white'}`}
             >
               {d}d
             </button>
@@ -346,8 +346,8 @@ export default function AnalyticsTab() {
         </div>
         <button
           onClick={() => load(days)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-[#555]
-                     hover:text-white hover:bg-[#2a2a2a] transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-fg-faint
+                     hover:text-white hover:bg-panel transition-colors"
         >
           <RefreshCw className="w-3 h-3" /> Refresh
         </button>
@@ -375,7 +375,7 @@ export default function AnalyticsTab() {
       </div>
 
       {/* ── Daily trend chart ── */}
-      <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4">
+      <div className="bg-ink-deep border border-panel rounded-xl p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white">Daily trend</h3>
           <div className="flex gap-1">
@@ -387,7 +387,7 @@ export default function AnalyticsTab() {
                 key={key}
                 onClick={() => setMetric(key)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5
-                  ${metric === key ? 'text-white' : 'text-[#555] hover:text-[#8e8ea0]'}`}
+                  ${metric === key ? 'text-white' : 'text-fg-faint hover:text-fg-muted'}`}
                 style={metric === key ? { background: color + '33', color } : {}}
               >
                 <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: color }} />
@@ -406,12 +406,12 @@ export default function AnalyticsTab() {
 
       {/* ── Web vs API source breakdown ── */}
       {(totalWeb + totalApi) > 0 && (
-        <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4">
+        <div className="bg-ink-deep border border-panel rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white">Request sources</h3>
-            <div className="flex items-center gap-3 text-xs text-[#555]">
+            <div className="flex items-center gap-3 text-xs text-fg-faint">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-sm inline-block bg-[#10a37f]" /> Web UI
+                <span className="w-2 h-2 rounded-sm inline-block bg-brand" /> Web UI
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-sm inline-block bg-[#a78bfa]" /> API key
@@ -430,12 +430,12 @@ export default function AnalyticsTab() {
               />
               <div className="space-y-2 text-xs">
                 <div>
-                  <p className="text-[#10a37f] font-semibold">{totalWeb.toLocaleString()}</p>
-                  <p className="text-[#555]">Web ({totalWeb + totalApi ? Math.round((totalWeb / (totalWeb + totalApi)) * 100) : 0}%)</p>
+                  <p className="text-brand font-semibold">{totalWeb.toLocaleString()}</p>
+                  <p className="text-fg-faint">Web ({totalWeb + totalApi ? Math.round((totalWeb / (totalWeb + totalApi)) * 100) : 0}%)</p>
                 </div>
                 <div>
                   <p className="text-[#a78bfa] font-semibold">{totalApi.toLocaleString()}</p>
-                  <p className="text-[#555]">API ({totalWeb + totalApi ? Math.round((totalApi / (totalWeb + totalApi)) * 100) : 0}%)</p>
+                  <p className="text-fg-faint">API ({totalWeb + totalApi ? Math.round((totalApi / (totalWeb + totalApi)) * 100) : 0}%)</p>
                 </div>
               </div>
             </div>
@@ -450,7 +450,7 @@ export default function AnalyticsTab() {
 
       {/* ── Top users + model usage ── */}
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4">
+        <div className="bg-ink-deep border border-panel rounded-xl p-4">
           <h3 className="text-sm font-semibold text-white mb-4">Top users — tokens</h3>
           <RankedBars
             rows={data?.topUsers ?? []}
@@ -460,7 +460,7 @@ export default function AnalyticsTab() {
           />
         </div>
 
-        <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4">
+        <div className="bg-ink-deep border border-panel rounded-xl p-4">
           <h3 className="text-sm font-semibold text-white mb-4">Model usage — requests</h3>
           <RankedBars
             rows={data?.modelUsage ?? []}
@@ -473,28 +473,28 @@ export default function AnalyticsTab() {
 
       {/* ── API key activity ── */}
       {data?.apiKeyActivity?.length > 0 && (
-        <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4">
+        <div className="bg-ink-deep border border-panel rounded-xl p-4">
           <h3 className="text-sm font-semibold text-white mb-4">API key activity</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#2a2a2a]">
+                <tr className="border-b border-panel">
                   {['Key', 'Requests', 'Tokens'].map((h) => (
-                    <th key={h} className="text-left text-xs text-[#555] font-medium pb-2 pr-4">{h}</th>
+                    <th key={h} className="text-left text-xs text-fg-faint font-medium pb-2 pr-4">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1e1e1e]">
+              <tbody className="divide-y divide-ink-deep">
                 {data.apiKeyActivity.map((k, i) => (
-                  <tr key={i} className="hover:bg-[#252525] transition-colors">
+                  <tr key={i} className="hover:bg-ink transition-colors">
                     <td className="py-2.5 pr-4">
                       <p className="text-white text-xs font-medium">{k.keyName || '—'}</p>
-                      <p className="text-[#555] text-xs font-mono">{k.keyPrefix}</p>
+                      <p className="text-fg-faint text-xs font-mono">{k.keyPrefix}</p>
                     </td>
-                    <td className="py-2.5 pr-4 text-[#8e8ea0] text-xs tabular-nums">
+                    <td className="py-2.5 pr-4 text-fg-muted text-xs tabular-nums">
                       {k.requests.toLocaleString()}
                     </td>
-                    <td className="py-2.5 text-[#8e8ea0] text-xs tabular-nums">
+                    <td className="py-2.5 text-fg-muted text-xs tabular-nums">
                       {k.tokens.toLocaleString()}
                     </td>
                   </tr>

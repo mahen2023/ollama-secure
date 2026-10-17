@@ -11,7 +11,7 @@ function Toggle({ value, onChange }) {
       role="switch"
       aria-checked={value}
       onClick={() => onChange(!value)}
-      className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${value ? 'bg-[#10a37f]' : 'bg-[#3a3a3a]'}`}
+      className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${value ? 'bg-brand' : 'bg-rule'}`}
     >
       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-5' : ''}`} />
     </button>
@@ -22,7 +22,7 @@ function Section({ icon: Icon, title, children }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-[#10a37f]" />
+        <Icon className="w-4 h-4 text-brand" />
         <h3 className="text-sm font-semibold text-white">{title}</h3>
       </div>
       <div className="space-y-3">{children}</div>
@@ -133,15 +133,15 @@ export default function SettingsModal() {
 
   return (
     <div
-      className="fixed inset-0 bg-[#212121] md:bg-black/70 md:backdrop-blur-sm flex items-center justify-center z-50 safe-area md:p-4"
+      className="fixed inset-0 bg-ink md:bg-black/70 md:backdrop-blur-sm flex items-center justify-center z-50 safe-area md:p-4"
       onClick={(e) => e.target === e.currentTarget && setSettingsOpen(false)}
     >
-      <div className="bg-[#212121] md:border md:border-[#3a3a3a] md:rounded-2xl w-full h-full md:h-auto md:max-w-lg md:shadow-2xl flex flex-col md:max-h-[90vh]">
+      <div className="bg-ink md:border md:border-rule md:rounded-2xl w-full h-full md:h-auto md:max-w-lg md:shadow-2xl flex flex-col md:max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a] shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-panel shrink-0">
           <h2 className="text-base font-semibold text-white">Settings</h2>
           <button onClick={() => setSettingsOpen(false)}
-            className="text-[#8e8ea0] hover:text-white transition-colors p-1 rounded-lg hover:bg-[#2a2a2a]">
+            className="text-fg-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-panel">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -151,7 +151,7 @@ export default function SettingsModal() {
           {TABS.map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                ${tab === t ? 'bg-[#2f2f2f] text-white' : 'text-[#8e8ea0] hover:text-white hover:bg-[#252525]'}`}>
+                ${tab === t ? 'bg-panel text-white' : 'text-fg-muted hover:text-white hover:bg-ink'}`}>
               {t}
             </button>
           ))}
@@ -168,17 +168,17 @@ export default function SettingsModal() {
                   onChange={(e) => patch('systemPrompt', e.target.value)}
                   placeholder="You are a helpful assistant…"
                   rows={4}
-                  className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-xl px-3 py-2.5
-                             focus:outline-none focus:border-[#10a37f] placeholder-[#555] text-sm resize-none"
+                  className="w-full bg-panel border border-rule text-fg rounded-xl px-3 py-2.5
+                             focus:outline-none focus:border-brand placeholder-fg-faint text-sm resize-none"
                 />
-                <p className="text-xs text-[#555]">Applied at the start of every conversation.</p>
+                <p className="text-xs text-fg-faint">Applied at the start of every conversation.</p>
               </Section>
 
               <Section icon={Zap} title="Streaming">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-[#ececec]">Stream responses</p>
-                    <p className="text-xs text-[#555] mt-0.5">Show tokens as they arrive</p>
+                    <p className="text-sm text-fg">Stream responses</p>
+                    <p className="text-xs text-fg-faint mt-0.5">Show tokens as they arrive</p>
                   </div>
                   <Toggle value={local.streamEnabled} onChange={(v) => patch('streamEnabled', v)} />
                 </div>
@@ -186,22 +186,22 @@ export default function SettingsModal() {
 
               <Section icon={AudioLines} title="Voice">
                 <div className="flex justify-between mb-1">
-                  <p className="text-sm text-[#ececec]">Speech speed</p>
-                  <span className="text-sm text-[#10a37f] font-mono font-semibold">{local.speechRate.toFixed(1)}×</span>
+                  <p className="text-sm text-fg">Speech speed</p>
+                  <span className="text-sm text-brand font-mono font-semibold">{local.speechRate.toFixed(1)}×</span>
                 </div>
                 <input type="range" min="0.5" max="2" step="0.1"
                   value={local.speechRate}
                   onChange={(e) => patch('speechRate', parseFloat(e.target.value))}
-                  className="w-full accent-[#10a37f] cursor-pointer" />
-                <p className="text-sm text-[#ececec] pt-2">Voice mode instructions</p>
+                  className="w-full accent-brand cursor-pointer" />
+                <p className="text-sm text-fg pt-2">Voice mode instructions</p>
                 <textarea
                   value={local.voicePrompt ?? ''}
                   onChange={(e) => patch('voicePrompt', e.target.value)}
                   rows={3}
-                  className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-xl px-3 py-2.5
-                             focus:outline-none focus:border-[#10a37f] placeholder-[#555] text-sm resize-none"
+                  className="w-full bg-panel border border-rule text-fg rounded-xl px-3 py-2.5
+                             focus:outline-none focus:border-brand placeholder-fg-faint text-sm resize-none"
                 />
-                <p className="text-xs text-[#555]">Added to the system prompt while voice mode is open.</p>
+                <p className="text-xs text-fg-faint">Added to the system prompt while voice mode is open.</p>
               </Section>
             </>
           )}
@@ -210,21 +210,21 @@ export default function SettingsModal() {
             <>
               <Section icon={Sliders} title="Temperature">
                 <div className="flex justify-between mb-1">
-                  <p className="text-sm text-[#ececec]">Randomness</p>
-                  <span className="text-sm text-[#10a37f] font-mono font-semibold">{local.temperature.toFixed(1)}</span>
+                  <p className="text-sm text-fg">Randomness</p>
+                  <span className="text-sm text-brand font-mono font-semibold">{local.temperature.toFixed(1)}</span>
                 </div>
                 <input type="range" min="0" max="2" step="0.1"
                   value={local.temperature}
                   onChange={(e) => patch('temperature', parseFloat(e.target.value))}
-                  className="w-full accent-[#10a37f] cursor-pointer" />
-                <div className="flex justify-between text-xs text-[#555] mt-1">
+                  className="w-full accent-brand cursor-pointer" />
+                <div className="flex justify-between text-xs text-fg-faint mt-1">
                   <span>0 — Deterministic</span><span>2 — Very creative</span>
                 </div>
               </Section>
 
               <Section icon={Layers} title="Context Length">
                 <div className="flex items-center justify-between mb-1 gap-3">
-                  <p className="text-sm text-[#ececec]">Max context tokens (num_ctx)</p>
+                  <p className="text-sm text-fg">Max context tokens (num_ctx)</p>
                   <input
                     type="number"
                     value={local.contextLength}
@@ -235,9 +235,9 @@ export default function SettingsModal() {
                       const v = parseInt(e.target.value, 10);
                       if (Number.isFinite(v) && v >= 512) patch('contextLength', v);
                     }}
-                    className="w-24 bg-[#2a2a2a] border border-[#3a3a3a] text-[#10a37f] font-mono
+                    className="w-24 bg-panel border border-rule text-brand font-mono
                                font-semibold text-sm text-right rounded-lg px-2 py-1
-                               focus:outline-none focus:border-[#10a37f]
+                               focus:outline-none focus:border-brand
                                [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
                                [&::-webkit-outer-spin-button]:appearance-none"
                   />
@@ -245,16 +245,16 @@ export default function SettingsModal() {
                 <input type="range" min="512" max="32768" step="512"
                   value={Math.min(local.contextLength, 32768)}
                   onChange={(e) => patch('contextLength', parseInt(e.target.value, 10))}
-                  className="w-full accent-[#10a37f] cursor-pointer" />
-                <div className="flex justify-between text-xs text-[#555] mt-1">
+                  className="w-full accent-brand cursor-pointer" />
+                <div className="flex justify-between text-xs text-fg-faint mt-1">
                   <span>512</span>
                   <span>32 768</span>
                 </div>
               </Section>
 
-              <div className="flex items-start gap-2 bg-[#1a1a1a] border border-[#3a3a3a] rounded-xl px-3 py-2.5">
-                <Info className="w-4 h-4 text-[#555] mt-0.5 shrink-0" />
-                <p className="text-xs text-[#555]">
+              <div className="flex items-start gap-2 bg-ink-deep border border-rule rounded-xl px-3 py-2.5">
+                <Info className="w-4 h-4 text-fg-faint mt-0.5 shrink-0" />
+                <p className="text-xs text-fg-faint">
                   Sets Ollama's context window size. Capped by the model's native limit.
                   Type a value above 32 768 directly — the slider covers the common range.
                 </p>
@@ -264,8 +264,8 @@ export default function SettingsModal() {
 
           {tab === 'API Keys' && (
             <Section icon={KeyRound} title="API Keys">
-              <p className="text-xs text-[#555] -mt-1 mb-1">
-                Keys grant access to <code className="font-mono text-[#8e8ea0]">/v1/*</code> — Ollama API without a user login.
+              <p className="text-xs text-fg-faint -mt-1 mb-1">
+                Keys grant access to <code className="font-mono text-fg-muted">/v1/*</code> — Ollama API without a user login.
                 Use them to integrate with other applications or scripts.
               </p>
               <ApiKeysManager />
@@ -275,14 +275,14 @@ export default function SettingsModal() {
           {tab === 'Account' && (
             <>
               <Section icon={UserCircle} title="Profile">
-                <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-4">
+                <div className="bg-panel border border-rule rounded-xl p-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#10a37f] to-[#1a7f64] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand to-brand-dim flex items-center justify-center shrink-0">
                       <UserCircle className="w-5 h-5 text-white" />
                     </div>
                     <div>
                       <p className="text-white font-medium">{user?.username}</p>
-                      <p className="text-[#555] text-xs">Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}</p>
+                      <p className="text-fg-faint text-xs">Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}</p>
                     </div>
                   </div>
                 </div>
@@ -300,14 +300,14 @@ export default function SettingsModal() {
                           onChange={(e) => patchPw(key, e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && submitPasswordChange()}
                           placeholder={labels[key]}
-                          className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-[#ececec] rounded-xl
-                                     px-3 py-2.5 pr-10 text-sm focus:outline-none focus:border-[#10a37f]
-                                     placeholder-[#555] transition-colors"
+                          className="w-full bg-panel border border-rule text-fg rounded-xl
+                                     px-3 py-2.5 pr-10 text-sm focus:outline-none focus:border-brand
+                                     placeholder-fg-faint transition-colors"
                         />
                         <button
                           type="button"
                           onClick={() => togglePwShow(key)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#8e8ea0] transition-colors"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-muted transition-colors"
                         >
                           {pwShow[key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -321,7 +321,7 @@ export default function SettingsModal() {
                     </p>
                   )}
                   {pwSuccess && (
-                    <p className="flex items-center gap-1.5 text-xs text-[#10a37f]">
+                    <p className="flex items-center gap-1.5 text-xs text-brand">
                       <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Password changed successfully
                     </p>
                   )}
@@ -329,7 +329,7 @@ export default function SettingsModal() {
                   <button
                     onClick={submitPasswordChange}
                     disabled={pwBusy}
-                    className="w-full py-2.5 bg-[#10a37f] hover:bg-[#0d9270] disabled:opacity-50
+                    className="w-full py-2.5 bg-brand hover:bg-brand-dim disabled:opacity-50
                                text-white text-sm font-medium rounded-xl transition-colors"
                   >
                     {pwBusy ? 'Updating…' : 'Update password'}
@@ -345,13 +345,13 @@ export default function SettingsModal() {
               {currentChat ? (
                 <div className="border border-red-500/20 bg-red-500/5 rounded-xl p-4">
                   <p className="text-sm text-white font-medium mb-1">Clear current chat</p>
-                  <p className="text-xs text-[#8e8ea0] mb-3">
+                  <p className="text-xs text-fg-muted mb-3">
                     Permanently removes all messages from <span className="text-white">"{currentChat.title}"</span>.
                   </p>
                   {confirmClear ? (
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                      <span className="text-sm text-[#8e8ea0] flex-1">This cannot be undone.</span>
+                      <span className="text-sm text-fg-muted flex-1">This cannot be undone.</span>
                       <button
                         onClick={handleClearMessages}
                         disabled={clearing}
@@ -360,7 +360,7 @@ export default function SettingsModal() {
                         {clearing ? 'Clearing…' : 'Yes, clear'}
                       </button>
                       <button onClick={() => setConfirmClear(false)}
-                        className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#333] text-white text-xs rounded-lg">
+                        className="px-3 py-1.5 bg-panel hover:bg-panel-hi text-white text-xs rounded-lg">
                         Cancel
                       </button>
                     </div>
@@ -373,13 +373,13 @@ export default function SettingsModal() {
                   )}
                 </div>
               ) : (
-                <p className="text-[#555] text-xs">Open a chat to clear its messages.</p>
+                <p className="text-fg-faint text-xs">Open a chat to clear its messages.</p>
               )}
 
               {/* Delete account */}
               <div className="border border-red-500/20 bg-red-500/5 rounded-xl p-4">
                 <p className="text-sm text-white font-medium mb-1">Delete account</p>
-                <p className="text-xs text-[#8e8ea0] mb-3">
+                <p className="text-xs text-fg-muted mb-3">
                   Permanently deletes your account and all chat history. This cannot be undone.
                 </p>
 
@@ -387,7 +387,7 @@ export default function SettingsModal() {
                   <div className="space-y-3">
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                      <p className="text-xs text-[#8e8ea0]">
+                      <p className="text-xs text-fg-muted">
                         All your chats and data will be permanently erased.
                         Enter your password to confirm.
                       </p>
@@ -400,14 +400,14 @@ export default function SettingsModal() {
                         onKeyDown={(e) => e.key === 'Enter' && handleDeleteAccount()}
                         placeholder="Your current password"
                         autoFocus
-                        className="w-full bg-[#1a1a1a] border border-red-500/30 text-[#ececec] rounded-xl
+                        className="w-full bg-ink-deep border border-red-500/30 text-fg rounded-xl
                                    px-3 py-2.5 pr-10 text-sm focus:outline-none focus:border-red-500/60
-                                   placeholder-[#555] transition-colors"
+                                   placeholder-fg-faint transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => setShowDeletePw((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#8e8ea0]"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-muted"
                       >
                         {showDeletePw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -428,7 +428,7 @@ export default function SettingsModal() {
                       </button>
                       <button
                         onClick={() => { setDeleteConfirm(false); setDeletePw(''); setDeleteError(''); }}
-                        className="px-4 py-2 bg-[#2a2a2a] hover:bg-[#333] text-white text-sm rounded-xl transition-colors"
+                        className="px-4 py-2 bg-panel hover:bg-panel-hi text-white text-sm rounded-xl transition-colors"
                       >
                         Cancel
                       </button>
@@ -449,13 +449,13 @@ export default function SettingsModal() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#2a2a2a] shrink-0">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-panel shrink-0">
           <button onClick={() => setSettingsOpen(false)}
-            className="px-4 py-2 text-[#8e8ea0] hover:text-white text-sm transition-colors rounded-lg hover:bg-[#2a2a2a]">
+            className="px-4 py-2 text-fg-muted hover:text-white text-sm transition-colors rounded-lg hover:bg-panel">
             Cancel
           </button>
           <button onClick={save}
-            className="px-4 py-2 bg-[#10a37f] hover:bg-[#0d9270] text-white text-sm font-medium rounded-xl transition-colors">
+            className="px-4 py-2 bg-brand hover:bg-brand-dim text-white text-sm font-medium rounded-xl transition-colors">
             Save changes
           </button>
         </div>
